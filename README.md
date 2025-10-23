@@ -1,12 +1,12 @@
 # JJ AppLink Express Accounts
 
-Plain Express app to get simple query from AppLink<br/>
+Simple Express app to query Salesforce using AppLink SDK<br/>
 <br/>
 
 Assumes you have a throw-away Salesforce org that is enabled for Heroku Applink.<br/>
 <br/>
 
-The only changes to make this work with [AppLink Service Mesh](https://github.com/heroku/heroku-buildpack-heroku-applink-service-mesh) are:
+Note that, to work with [AppLink Service Mesh](https://github.com/heroku/heroku-buildpack-heroku-applink-service-mesh), you must:
 * add the service mesh buildpack
 * add Heroku config var APP_PORT
 * adjust the Procfile to launch service mesh
