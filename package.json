@@ -1,5 +1,5 @@
 {
-  "name": "jj-applink-express-hello",
+  "name": "jj-applink-express-accounts",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
@@ -7,9 +7,9 @@
     "start": "node index.js"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "author": "Heroku DevRel <heroku-dev-advocacy@salesforce.com>",
+  "license": "Apache-2.0",
+  "description": "Heroku AppLink Sample App with Node.js and Express",
   "dependencies": {
     "@heroku/applink": "^1.0.0",
     "express": "^5.1.0"
