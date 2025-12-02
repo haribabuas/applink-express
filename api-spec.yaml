@@ -14,7 +14,7 @@ paths:
       x-sfdc:
         heroku:
           authorization:
-            connectedApp: 'ApplinkAccountsAccessConnectedApp'
+            connectedApp: 'HerokuAccsAccessConnectedApp'
       responses:
         '200':
           description: Successfully returned a list of Accounts
