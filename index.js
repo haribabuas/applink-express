@@ -106,7 +106,6 @@ app.post('/api/generatequotelines', async (req, res) => {
       refs.push(ref);
     }
 
-    try {
       console.log(`Attempting to commit ${quoteLinesToInsert.length} records in a single transaction.`);
       const commitRes = await org.dataApi.commitUnitOfWork(uow);
 
@@ -120,17 +119,6 @@ app.post('/api/generatequotelines', async (req, res) => {
         }
       }
       console.log(`Successfully created ${createdIds.length} quote lines.`);
-
-    } catch (error) {
-      // THIS CATCH BLOCK WILL TRIGGER ON JSON_PARSER_ERROR
-      console.error('CRITICAL ERROR: Failed during commitUnitOfWork for entire payload.');
-      console.error('The specific error was:', error.message);
-      
-      // Log the ENTIRE payload as a strict JSON string for debugging the bad character
-      console.error('Problematic Payload Data JSON:', JSON.stringify(quoteLinesToInsert, null, 2));
-
-      throw new Error(`Process halted due to JSON_PARSER_ERROR. Check logs above for problematic JSON.`);
-    }
 
 });
 
