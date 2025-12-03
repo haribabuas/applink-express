@@ -6,14 +6,8 @@ app.post('/api/generatequotelines', async (req, res) => {
     return res.status(400).json({ error: 'Missing required data' });
   }
 
-  try {
     const sf = applinkSDK.parseRequest(req.headers, req.body, null);
     const org = sf.context.org;
-
-    if (!org?.dataApi) {
-      throw new Error('Salesforce context not initialized. Check AppLink headers.');
-    }
-
     console.log('@@@Org Context:', org);
 
     const uow = org.dataApi.newUnitOfWork();
@@ -21,20 +15,10 @@ app.post('/api/generatequotelines', async (req, res) => {
 
     const commitResult = await org.dataApi.commitUnitOfWork(uow);
     const result = commitResult.getResult(refId);
-
-    if (!result?.id) {
-      throw new Error('Account creation failed');
-    }
-
+  console.log('@@@Org result:', result);
+   
     res.json({
-      message: 'Account created successfully',
-      accountId: result.id
+      message: 'Account created successfully'
     });
-  } catch (err) {
-    console.error('@@Error:', err);
-    res.status(500).json({
-      error: err.message,
-      details: err.response?.data || 'No additional details'
-    });
-  }
+  
 });
