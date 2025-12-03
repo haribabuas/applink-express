@@ -46,10 +46,9 @@ function chunkArray(array, size) {
   return result;
 }
 
-
 app.post('/api/generatequotelines', async (req, res) => {
   const { quoteId, sapLineIds } = req.body;
-
+  
   if (!quoteId || !sapLineIds?.length) {
     return res.status(400).json({ error: 'Missing required data' });
   }
@@ -58,29 +57,61 @@ app.post('/api/generatequotelines', async (req, res) => {
   const org = sf.context.org;
 
   try {
-    // Safely format IDs for SOQL
-    const idsString = sapLineIds.map(id => `'${id}'`).join(',');
+    const sapLineChunks = chunkArray(sapLineIds, 200);
 
-    const query = `
-      SELECT Id, License_Type__c, Quantity__c, End_Date_Consolidated__c,
-             CPQ_Product__c, Install__c,
-             CPQ_Product__r.Access_Range__c,
-             Install__r.AccountID__c, Install__r.Partner_Account__c, Install__r.CPQ_Sales_Org__c
-      FROM SAP_Install_Line_Item__c
-      WHERE Id IN (${idsString})
-    `;
+    const sapLineQueries = sapLineChunks.map(chunk => {
+      const query = `
+        SELECT Id, License_Type__c, Quantity__c, End_Date_Consolidated__c,
+               CPQ_Product__c, Install__c,
+               CPQ_Product__r.Access_Range__c,
+               Install__r.AccountID__c, Install__r.Partner_Account__c, Install__r.CPQ_Sales_Org__c
+        FROM SAP_Install_Line_Item__c
+        WHERE Id IN (${chunk.map(id => `'${id}'`).join(',')})
+      `;
+      return org.dataApi.query(query);
+    });
+console.log('@@@sapLineQueries',sapLineQueries.records);
+    const queryResults = await Promise.all(sapLineQueries.records);
+    const allSapLines = queryResults.flatMap(result => result.records);
+    console.log(`Total SAP lines fetched: ${allSapLines.length}`);
+    const quoteLinesToInsert = allSapLines.map(lineItem => {
+      const startDate = lineItem.End_Date_Consolidated__c
+        ? getAdjustedStartDate(lineItem.End_Date_Consolidated__c)
+        : new Date();
+      const endDate = new Date(startDate);
+      endDate.setMonth(endDate.getMonth() + 12);
 
-    const sapLineQueries = await org.dataApi.query(query);
+      return {
+        attributes: { type: 'SBQQ__QuoteLine__c' },
+        SBQQ__Product__c: lineItem.CPQ_Product__c,
+        SBQQ__Quote__c: quoteId,
+        Install__c: lineItem.Install__c,
+        Access_Range__c: lineItem.CPQ_Product__r?.Access_Range__c,
+        Account__c: lineItem.Install__r?.AccountID__c,
+        Partner_Account__c: lineItem.Install__r?.Partner_Account__c,
+        Sales_Org__c: lineItem.Install__r?.CPQ_Sales_Org__c,
+        SBQQ__Quantity__c: lineItem.Quantity__c,
+        SBQQ__StartDate__c: startDate.toISOString().split('T')[0],
+        SBQQ__EndDate__c: endDate.toISOString().split('T')[0],
+        CPQ_License_Type__c: 'MAINT'
+      };
+    });
 
-    console.log('@@@sapLineQueries', sapLineQueries.records);
-
-    res.json({ message: 'Quote lines created', data: sapLineQueries.records });
+    const batches = chunkArray(quoteLinesToInsert, 200);
+    const results = [];
+    console.log('@@@batches',batches);
+    for (const batch of batches) {
+      const result = await org.dataApi.create(batch);
+      console.log('@@@resultOrg',result);
+      results.push(...result);
+    }
+    console.error('@@Results ', results);
+    res.json({ message: 'Quote lines created', totalInserted: results.length });
   } catch (err) {
     console.error('@@Error creating quote lines:', err);
-    res.status(500).json({ error: err.message });
+    res.json({ error: err.message });
   }
 });
-
 
 
 
