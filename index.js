@@ -5,18 +5,18 @@ const app = express()
 
 app.use(express.json())
 
-app.get('/accounts', async (req, res) => {
-    console.log('@@@',req.body);
-    console.log('@@@',req.headers);
+app.get('/accounts', async (request, res) => {
+    console.log('@@@',request.body);
+    console.log('@@@',request.headers);
     
-    req.sdk = applinkSDK.init();
-    const { event, context, logger } = req.sdk;
+    request.sdk = applinkSDK.init();
+    console.log('@@@',request.sdk);
+    const { event, context, logger } = request.sdk;
     const queryString = "SELECT Id, Name FROM Account LIMIT 10";
     const org = context.org;
-    console.log('@@@org',org);
     const result = await org.dataApi.query(query);
     console.log('@@@result',result);
-    const sf = applinkSDK.parseRequest(req.headers, req.body, null).context.org.dataApi;
+    const sf = applinkSDK.parseRequest(request.headers, request.body, null).context.org.dataApi;
     console.log('@@@sf',sf);
     
 
