@@ -16,9 +16,11 @@ app.get('/accounts', async (request, res) => {
 
     const sf = applinkSDK.parseRequest(request.headers, request.body, null);//.context.org.dataApi;
     console.log('@@@sf',sf);
+    const org = sf.context.org;
+    console.log('@@@org',org);
     
 
-    const queryResult = await sf.query(queryString);
+    const queryResult = await org.dataApi.query(queryString); //sf.query(queryString);
     const outAccounts = queryResult.records.map(rec => rec.fields);
 
     res.json(outAccounts);
