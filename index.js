@@ -9,21 +9,22 @@ app.use(express.json());
 app.post('/api/generatequotelines', async (req, res) => {
   const { quoteId, sapLineIds } = req.body;
 
-  if (!quoteId || !sapLineIds?.length) {
-    return res.status(400).json({ error: 'Missing required data' });
-  }
-
     const sf = applinkSDK.parseRequest(req.headers, req.body, null);
     const org = sf.context.org;
+    const dataApi = context.org.dataApi
+    console.log('@@@Org Context:', dataApi);
 
-    console.log('@@@Org Context:', org);
+    const uow = dataApi.newUnitOfWork();
+    const accountId = uow.registerCreate({
+        type: 'Account',
+        fields: {
+          Name: 'Test Account',
+        },
+      });
 
-    const uow = org.dataApi.newUnitOfWork();
-    const refId = uow.registerCreate('Account', { Name: 'Heroku Account' });
-
-    const commitResult = await org.dataApi.commitUnitOfWork(uow);
-    const result = commitResult.getResult(refId);
-console.log('@@@Org result:', result);
+    const response = await dataApi.commitUnitOfWork(uow);
+    
+console.log('@@@Org result:', response);
     res.json({
       message: 'Account created successfully'
     });
