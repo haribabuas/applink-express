@@ -72,7 +72,7 @@ app.post('/api/generatequotelines', async (req, res) => {
 
     const sapLineQueries = await org.dataApi.query(query);
 
-    console.log('@@@sapLineQueries', sapLineQueries);
+    console.log('@@@sapLineQueries', sapLineQueries.records);
 
     res.json({ message: 'Quote lines created', data: sapLineQueries.records });
   } catch (err) {
