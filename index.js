@@ -1,10 +1,4 @@
 
-const PORT = process.env.APP_PORT || 3000;
-const applinkSDK = require('@heroku/applink');
-const express = require('express');
-const app = express();
-app.use(express.json());
-
 app.post('/api/generatequotelines', async (req, res) => {
   const { quoteId, sapLineIds } = req.body;
 
@@ -17,12 +11,10 @@ app.post('/api/generatequotelines', async (req, res) => {
     const org = sf.context.org;
 
     if (!org?.dataApi) {
-      throw new Error('Salesforce org context not initialized. Check AppLink headers.');
+      throw new Error('Salesforce context not initialized. Check AppLink headers.');
     }
 
-    // Test object accessibility
-    const describe = await org.dataApi.describe('Account');
-    console.log('@@@Describe Account:', describe);
+    console.log('@@@Org Context:', org);
 
     const uow = org.dataApi.newUnitOfWork();
     const refId = uow.registerCreate('Account', { Name: 'Heroku Account' });
@@ -45,8 +37,4 @@ app.post('/api/generatequotelines', async (req, res) => {
       details: err.response?.data || 'No additional details'
     });
   }
-});
-
-app.listen(PORT, () => {
-  console.log(`Listening on ${PORT}`);
 });
