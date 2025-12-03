@@ -121,32 +121,29 @@ app.post('/api/generatequotelines', async (req, res) => {
       return res.status(404).json({ error: 'No SAP install lines found' });
     }
 
-    // Map SAP → QuoteLine with defensive reads
-    const quoteLinesToInsert = sapLines.map((lineItem) => {
-      // Compute dates
-      console.log('@@@lineItem',lineItem);
-      const startDate = lineItem.End_Date_Consolidated__c
-        ? getAdjustedStartDate(lineItem.End_Date_Consolidated__c)
-        : new Date();
-      const endDate = new Date(startDate);
-      endDate.setMonth(endDate.getMonth() + 12);
+const quoteLinesToInsert = sapLines.map((lineItem) => {
+  const f = lineItem.fields;
+  const startDate = f.end_date_consolidated__c
+    ? getAdjustedStartDate(f.end_date_consolidated__c)
+    : new Date();
+  const endDate = new Date(startDate);
+  endDate.setMonth(endDate.getMonth() + 12);
 
-      return {
-        // No need for attributes when using UnitOfWork/registerCreate
-        SBQQ__Quote__c: quoteId,
-        SBQQ__Product__c: lineItem.CPQ_Product__c,                 // may be null: we’ll filter later
-        Install__c: lineItem.Install__c,
-        Access_Range__c: getByPath(lineItem, 'CPQ_Product__r.Access_Range__c'),
-        Account__c: getByPath(lineItem, 'Install__r.AccountID__c'),
-        Partner_Account__c: getByPath(lineItem, 'Install__r.Partner_Account__c'),
-        Sales_Org__c: getByPath(lineItem, 'Install__r.CPQ_Sales_Org__c'),
-        SBQQ__Quantity__c: lineItem.Quantity__c,
-        SBQQ__StartDate__c: toDateOnly(startDate),
-        SBQQ__EndDate__c: toDateOnly(endDate),
-        CPQ_License_Type__c: 'MAINT',  // default if missing
-                     // helpful traceability
-      };
-    });
+  return {
+    SBQQ__Quote__c: quoteId,
+    SBQQ__Product__c: f.cpq_product__c,
+    Install__c: f.install__c,
+    Access_Range__c: f.cpq_product__r?.fields?.access_range__c, // safe nested access
+    Account__c: f.install__r?.fields?.accountid__c,
+    Partner_Account__c: f.install__r?.fields?.partner_account__c,
+    Sales_Org__c: f.install__r?.fields?.cpq_sales_org__c,
+    SBQQ__Quantity__c: f.quantity__c,
+    SBQQ__StartDate__c: startDate.toISOString().split('T')[0],
+    SBQQ__EndDate__c: endDate.toISOString().split('T')[0],
+    CPQ_License_Type__c: f.license_type__c || 'MAINT'
+  };
+});
+
 
 console.log('@@@quoteLinesToInsert',quoteLinesToInsert);
     // Batch via UnitOfWork: commit in chunks to avoid oversized transactions
