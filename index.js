@@ -11,7 +11,7 @@ app.post('/api/generatequotelines', async (req, res) => {
 
     const sf = applinkSDK.parseRequest(req.headers, req.body, null);
     const org = sf.context.org;
-    const dataApi = context.org.dataApi
+    const dataApi = sf.context.org.dataApi;
     console.log('@@@Org Context:', dataApi);
 
     const uow = dataApi.newUnitOfWork();
