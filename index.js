@@ -70,7 +70,7 @@ app.post('/api/generatequotelines', async (req, res) => {
       `;
       return org.dataApi.query(query);
     });
-
+console.log('@@@sapLineQueries',sapLineQueries);
     const queryResults = await Promise.all(sapLineQueries);
     const allSapLines = queryResults.flatMap(result => result.records);
     console.log(`Total SAP lines fetched: ${allSapLines.length}`);
