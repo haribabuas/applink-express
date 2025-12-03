@@ -11,12 +11,10 @@ app.get('/accounts', async (request, res) => {
     
     request.sdk = applinkSDK.init();
     console.log('@@@',request.sdk);
-    const { event, context, logger } = request.sdk;
+    
     const queryString = "SELECT Id, Name FROM Account LIMIT 10";
-    const org = context.org;
-    const result = await org.dataApi.query(query);
-    console.log('@@@result',result);
-    const sf = applinkSDK.parseRequest(request.headers, request.body, null).context.org.dataApi;
+
+    const sf = applinkSDK.parseRequest(request.headers, request.body, null);//.context.org.dataApi;
     console.log('@@@sf',sf);
     
 
