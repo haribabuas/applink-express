@@ -100,7 +100,7 @@ app.post('/api/generatequotelines', async (req, res) => {
     const results = [];
 
     for (const batch of batches) {
-      const result = await org.dataApi.sobject('SBQQ__QuoteLine__c').create(batch);
+      const result = await org.dataApi.create('SBQQ__QuoteLine__c',batch);
       results.push(...result);
     }
     console.error('@@Results ', results);
