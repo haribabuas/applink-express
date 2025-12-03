@@ -20,8 +20,10 @@ app.post('/create-quote-lines-sap', async (req, res) => {
     const { quoteId, sapLineIds } = req.body;
   console.log('Incoming request body:', req.body);
     console.log('@@@quoteId:', quoteId);
-  const sf = applinkSDK.parseRequest(req.headers, req.body, null).context.org.dataApi;
+    console.log('@@@req.headers:', req.headers);
 
+  const sf = applinkSDK.parseRequest(req.headers, req.body, null).context.org.dataApi;
+    console.log('@@@sf',sf);
     const queryString = "SELECT Id, Name FROM Account LIMIT 10";
     const queryResult = await sf.query(queryString);
     const outAccounts = queryResult.records.map(rec => rec.fields);
