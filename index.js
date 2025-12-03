@@ -27,9 +27,13 @@ app.post('/api/generatequotelines', async (request, res) => {
   const sf = applinkSDK.parseRequest(request.headers, request.body, null);//.context.org.dataApi;
     console.log('@@@sf',sf);
     const queryString = "SELECT Id, Name FROM Account LIMIT 10";
-    const queryResult = await sf.query(queryString);
+    console.log('@@@sf',sf);
+    const org = sf.context.org;
+    console.log('@@@org',org);
+    const queryResult = await org.dataApi.query(queryString); //sf.query(queryString);
     const outAccounts = queryResult.records.map(rec => rec.fields);
-    console.log('@@@outAccounts',outAccounts);
+
+    res.json(outAccounts);
 
 })
 
