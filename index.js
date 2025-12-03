@@ -32,7 +32,7 @@ app.post('/api/generatequotelines', async (request, res) => {
     console.log('@@@org',org);
     const queryResult = await org.dataApi.query(queryString); //sf.query(queryString);
     const outAccounts = queryResult.records.map(rec => rec.fields);
-
+    console.log('@@@outAccounts',outAccounts);
     res.json(outAccounts);
 
 })
