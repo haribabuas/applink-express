@@ -16,7 +16,7 @@ app.get('/accounts', async (req, res) => {
     res.json(outAccounts);
 })
 
-app.post('/create-quote-lines-sap', async (request, res) => {
+app.post('/api/generatequotelines', async (request, res) => {
     const { quoteId, sapLineIds } = request.body;
     console.log('Incoming request body:', request.body);
     console.log('@@@quoteId:', quoteId);

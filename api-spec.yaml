@@ -1,37 +1,75 @@
-openapi: 3.0.0
+openapi: 3.0.1
 info:
-  version: 1.0.0
-  title: Heroku-Salesforce API
-  description: Sample Heroku app exposing APIs to connected Salesforce and Data Cloud orgs.
+  title: OpenAPI definition
+  version: v0
+components:
+  schemas:
+    QuoteLineGenerationRequest:
+      type: object
+      required:
+        - quoteId
+      description: Request to generate a quote, includes the quote ID 
+      properties:
+        quoteId:
+          type: string
+          description: A record Id for the Quote
+          sapLineIds:
+          type: array
+          description: A record Ids for the Lines
+    QuoteLineGenerationResponse:
+      type: object
+      description: Response includes the record Id of the generated quote.
+      properties:
+        message:
+          type: string
+          description: A message for the generated quote
 paths:
-  /accounts:
-    get:
+  /api/generatequotelines:
+    post:
+      operationId: generateQuoteLines
+      summary: Generate a Quote for a given Opportunity
       tags:
-        - accounts
-      summary: Get All Accounts
-      operationId: GetAccounts
-      description: Returns array of Accounts
+        - Quote Lines
+      description: Create Quote lines.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuoteLineGenerationRequest"
       x-sfdc:
         heroku:
           authorization:
-            connectedApp: 'HerokuAccsAccessConnectedApp'
+            connectedApp: GenerateQuoteLineConnectedApp
+            permissionSet: GenerateQuoteLinePermissions
       responses:
-        '200':
-          description: Successfully returned a list of Accounts
+        "200":
+          description: OK
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Account'
-components:
-  schemas:
-    Account:
-      type: object
-      properties:
-        id:
-          type: string
-          example: '001...'
-        name:
-          type: string
-          example: 'Test Account'
+                $ref: "#/components/schemas/QuoteLineGenerationResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: boolean
+                  message:
+                    type: string
+                    description: Error message when client context is missing or invalid
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: boolean
+                  message:
+                    type: string
+                    description: Error message when an unexpected error occurs
+
