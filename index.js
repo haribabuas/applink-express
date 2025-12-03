@@ -49,76 +49,28 @@ app.post('/api/generatequotelines', async (req, res) => {
     `;
 
     const sapRes = await org.dataApi.query(query);
-    const sapLines = sapRes?.records ?? [];
+    const sapLines = sapRes.records[0].fields;
 
-    if (!sapLines.length) {
-      return res.status(404).json({ error: 'No SAP install lines found' });
-    }
-
-    const quoteLinesToInsert = sapLines.map((lineItem) => {
-      const f = lineItem.fields;
-
-      // Helper function to clean strings (already in your code)
-      const cleanString = (str) => {
-        if (typeof str === 'string') {
-          // Replace smart quotes, non-breaking spaces, and trim whitespace
-          return str.replace(/[“”‘’]/g, '"').replace(/\u00A0/g, ' ').trim();
-        }
-        return str; // Return null, numbers, etc. as is
-      };
-
-      const startDate = f.End_Date_Consolidated__c
-        ? getAdjustedStartDate(f.End_Date_Consolidated__c)
-        : new Date();
-
-      const endDate = new Date(startDate);
-      endDate.setMonth(endDate.getMonth() + 12);
-
-      // Build payload using exact API names from SBQQ__QuoteLine__c
-      const ql = {
+    const uow = org.dataApi.newUnitOfWork();
+    const refId = uow.registerCreate('SBQQ__QuoteLine__c', {
+      SBQQ__Product__c: sapLines.CPQ_Product__c,
         SBQQ__Quote__c: quoteId,
-        SBQQ__Product__c: cleanString(f.CPQ_Product__c),
-        Install__c: cleanString(f.Install__c),
-        // Apply cleaning to all potential string fields
-        Access_Range__c: cleanString(f.CPQ_Product__r?.fields?.Access_Range__c ?? null),
-        Account__c: cleanString(f.Install__r?.fields?.AccountID__c ?? null),
-        Partner_Account__c: cleanString(f.Install__r?.fields?.Partner_Account__c ?? null),
-        Sales_Org__c: cleanString(f.Install__r?.fields?.CPQ_Sales_Org__c ?? null),
-        SBQQ__Quantity__c: f.Quantity__c,
-        SBQQ__StartDate__c: startDate.toISOString().split('T')[0],
-        SBQQ__EndDate__c: endDate.toISOString().split('T')[0],
-        CPQ_License_Type__c: 'MAINT',
-      };
-
-      return ql;
+        Install__c: sapLines.Install__c,
+        Access_Range__c: sapLines.CPQ_Product__r?.Access_Range__c,
+        Account__c: sapLines.Install__r?.AccountID__c,
+        Partner_Account__c: sapLines.Install__r?.Partner_Account__c,
+        Sales_Org__c: sapLines.Install__r?.CPQ_Sales_Org__c,
+        SBQQ__Quantity__c: sapLines.Quantity__c,
+        //SBQQ__StartDate__c: startDate.toISOString().split('T')[0],
+        //SBQQ__EndDate__c: endDate.toISOString().split('T')[0],
+        CPQ_License_Type__c: 'MAINT'
     });
 
-    // Remove the console log that outputs non-strict JS objects.
-    // console.log('@@@quoteLinesToInsert', quoteLinesToInsert); 
+    const commitResult = await org.dataApi.commitUnitOfWork(uow);
 
-    const createdIds = [];
-    const uow = org.dataApi.newUnitOfWork();
-    const refs = [];
-
-    // Register all quote lines in a single Unit of Work
-    for (const ql of quoteLinesToInsert) {
-      const ref = uow.registerCreate('SBQQ__QuoteLine__c', ql);
-      refs.push(ref);
-    }
-
-      console.log(`Attempting to commit ${quoteLinesToInsert.length} records in a single transaction.`);
-      const commitRes = await org.dataApi.commitUnitOfWork(uow);
-
-      // Process results if successful
-      for (const ref of refs) {
-        const result = commitRes.getResult(ref);
-        if (result?.id) {
-          createdIds.push(result.id);
-        } else if (result?.errors?.length) {
-          console.warn('Create error for a single record after successful commit:', result.errors);
-        }
-      }
-      console.log(`Successfully created ${createdIds.length} quote lines.`);
+   res.json({
+      newAccountId: commitResult.getRefId(refId).id
+    });
 
 });
 
