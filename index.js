@@ -82,6 +82,7 @@ app.post('/api/generatequotelines', async (req, res) => {
       endDate.setMonth(endDate.getMonth() + 12);
 
       return {
+        attributes: { type: 'SBQQ__QuoteLine__c' },
         SBQQ__Product__c: lineItem.CPQ_Product__c,
         SBQQ__Quote__c: quoteId,
         Install__c: lineItem.Install__c,
@@ -100,7 +101,7 @@ app.post('/api/generatequotelines', async (req, res) => {
     const results = [];
     console.log('@@@batches',batches);
     for (const batch of batches) {
-      const result = await org.dataApi.create('SBQQ__QuoteLine__c',batch);
+      const result = await org.dataApi.create(batch);
       console.log('@@@resultOrg',result);
       results.push(...result);
     }
