@@ -52,7 +52,11 @@ app.post('/api/generatequotelines', async (req, res) => {
     const sapLines = sapRes.records[0].fields;
   console.log('@@@sapLines',sapLines);
     const uow = org.dataApi.newUnitOfWork();
-    const refId = uow.registerCreate('SBQQ__QuoteLine__c', {
+  const refId = uow.registerCreate('Account', {
+      Name: 'Heroku Account'
+    });
+
+   /* const refId = uow.registerCreate('SBQQ__QuoteLine__c', {
       SBQQ__Product__c: sapLines.CPQ_Product__c,
         SBQQ__Quote__c: quoteId,
         Install__c: sapLines.Install__c,
@@ -64,7 +68,7 @@ app.post('/api/generatequotelines', async (req, res) => {
         //SBQQ__StartDate__c: startDate.toISOString().split('T')[0],
         //SBQQ__EndDate__c: endDate.toISOString().split('T')[0],
         CPQ_License_Type__c: 'MAINT'
-    });
+    });*/
     console.log('@@@refid',refId);
     const commitResult = await org.dataApi.commitUnitOfWork(uow);
     console.log('@@@commitResult',commitResult);
