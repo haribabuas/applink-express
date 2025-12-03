@@ -8,14 +8,16 @@ components:
       type: object
       required:
         - quoteId
-      description: Request to generate a quote, includes the quote ID 
+      description: Request to generate a quote, includes the quote ID
       properties:
         quoteId:
           type: string
           description: A record Id for the Quote
-          sapLineIds:
+        sapLineIds:
           type: array
-          description: A record Ids for the Lines
+          description: A list of record Ids for the Lines
+          items:
+            type: string
     QuoteLineGenerationResponse:
       type: object
       description: Response includes the record Id of the generated quote.
@@ -32,6 +34,7 @@ paths:
         - Quote Lines
       description: Create Quote lines.
       requestBody:
+        required: true
         content:
           application/json:
             schema:
@@ -72,4 +75,3 @@ paths:
                   message:
                     type: string
                     description: Error message when an unexpected error occurs
-
