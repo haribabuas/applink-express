@@ -6,8 +6,11 @@ const app = express()
 app.use(express.json())
 
 app.get('/accounts', async (req, res) => {
-    const sf = applinkSDK.parseRequest(req.headers, req.body, null).context.org.dataApi;
+    console.log('@@@',req.body);
+    console.log('@@@',req.headers);
 
+    const sf = applinkSDK.parseRequest(req.headers, req.body, null).context.org.dataApi;
+    console.log('@@@sf',sf);
     const queryString = "SELECT Id, Name FROM Account LIMIT 10";
 
     const queryResult = await sf.query(queryString);
