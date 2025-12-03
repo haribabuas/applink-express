@@ -48,6 +48,8 @@ function chunkArray(array, size) {
 
 
 
+
+
 app.post('/api/generatequotelines', async (req, res) => {
   const { quoteId, sapLineIds } = req.body;
 
@@ -58,44 +60,71 @@ app.post('/api/generatequotelines', async (req, res) => {
   const sf = applinkSDK.parseRequest(req.headers, req.body, null);
   const org = sf.context.org;
 
-  // Helper: chunk array into batches
+  // ---------- Helpers ----------
   const chunkArray = (arr, size) => {
     const chunks = [];
-    for (let i = 0; i < arr.length; i += size) {
-      chunks.push(arr.slice(i, i + size));
-    }
+    for (let i = 0; i < arr.length; i += size) chunks.push(arr.slice(i, i + size));
     return chunks;
   };
 
-  // Helper: adjust start date logic
-  const getAdjustedStartDate = (endDateStr) => {
-    const endDate = new Date(endDateStr);
-    if (isNaN(endDate)) return new Date();
-    return endDate; // or apply custom logic if needed
+  // Safe nested getter: "A.B.C" → obj?.A?.B?.C
+  const getByPath = (obj, path) => {
+    if (!obj || !path) return undefined;
+    return path.split('.').reduce((acc, key) => (acc && acc[key] !== undefined ? acc[key] : undefined), obj);
   };
 
+  // Date-only string in UTC
+  const toDateOnly = (d) => {
+    const date = new Date(d);
+    if (Number.isNaN(date.getTime())) return null;
+    const yyyy = date.getUTCFullYear();
+    const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(date.getUTCDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  // If you need special logic for start date, adjust here
+  const getAdjustedStartDate = (endDateStr) => {
+    // Example: start = end - 12 months OR default to today
+    const end = new Date(endDateStr);
+    if (Number.isNaN(end.getTime())) return new Date(); // fallback: today
+    const start = new Date(end);
+    start.setMonth(start.getMonth() - 12);
+    return start;
+  };
+
+  // ---------- Main ----------
   try {
-    // Safely format IDs for SOQL
-    const idsString = sapLineIds.map(id => `'${id}'`).join(',');
+    // Build SOQL safely
+    const idsString = sapLineIds.map(id => `'${String(id).replace(/'/g, "\\'")}'`).join(',');
 
     const query = `
-      SELECT Id, License_Type__c, Quantity__c, End_Date_Consolidated__c,
-             CPQ_Product__c, Install__c,
-             CPQ_Product__r.Access_Range__c,
-             Install__r.AccountID__c, Install__r.Partner_Account__c, Install__r.CPQ_Sales_Org__c
+      SELECT
+        Id,
+        License_Type__c,
+        Quantity__c,
+        End_Date_Consolidated__c,
+        CPQ_Product__c,
+        Install__c,
+        CPQ_Product__r.Access_Range__c,
+        Install__r.AccountID__c,
+        Install__r.Partner_Account__c,
+        Install__r.CPQ_Sales_Org__c
       FROM SAP_Install_Line_Item__c
       WHERE Id IN (${idsString})
     `;
 
-    const sapLineQueries = await org.dataApi.query(query);
-    const allSapLines = sapLineQueries.records || [];
+    const sapRes = await org.dataApi.query(query);
+    const sapLines = sapRes?.records ?? [];
 
-    if (!allSapLines.length) {
+    if (!sapLines.length) {
       return res.status(404).json({ error: 'No SAP install lines found' });
     }
-    console.log('@@@allSapLines',allSapLines);
-    // Build quote line records
-    const quoteLinesToInsert = allSapLines.map(lineItem => {
+
+    // Map SAP → QuoteLine with defensive reads
+    const quoteLinesToInsert = sapLines.map((lineItem) => {
+      // Compute dates
+      console.log('@@@lineItem',lineItem);
       const startDate = lineItem.End_Date_Consolidated__c
         ? getAdjustedStartDate(lineItem.End_Date_Consolidated__c)
         : new Date();
@@ -103,40 +132,73 @@ app.post('/api/generatequotelines', async (req, res) => {
       endDate.setMonth(endDate.getMonth() + 12);
 
       return {
-        attributes: { type: 'SBQQ__QuoteLine__c' },
+        // No need for attributes when using UnitOfWork/registerCreate
         SBQQ__Quote__c: quoteId,
-        SBQQ__Product__c: lineItem.CPQ_Product__c,
+        SBQQ__Product__c: lineItem.CPQ_Product__c,                 // may be null: we’ll filter later
         Install__c: lineItem.Install__c,
-        Access_Range__c: lineItem.CPQ_Product__r?.Access_Range__c,
-        Account__c: lineItem.Install__r?.AccountID__c,
-        Partner_Account__c: lineItem.Install__r?.Partner_Account__c,
-        Sales_Org__c: lineItem.Install__r?.CPQ_Sales_Org__c,
+        Access_Range__c: getByPath(lineItem, 'CPQ_Product__r.Access_Range__c'),
+        Account__c: getByPath(lineItem, 'Install__r.AccountID__c'),
+        Partner_Account__c: getByPath(lineItem, 'Install__r.Partner_Account__c'),
+        Sales_Org__c: getByPath(lineItem, 'Install__r.CPQ_Sales_Org__c'),
         SBQQ__Quantity__c: lineItem.Quantity__c,
-        SBQQ__StartDate__c: startDate.toISOString().split('T')[0],
-        SBQQ__EndDate__c: endDate.toISOString().split('T')[0],
-        CPQ_License_Type__c: 'MAINT'
+        SBQQ__StartDate__c: toDateOnly(startDate),
+        SBQQ__EndDate__c: toDateOnly(endDate),
+        CPQ_License_Type__c: lineItem.License_Type__c || 'MAINT',  // default if missing
+        Source_Install_Line__c: lineItem.Id                         // helpful traceability
       };
     });
-    console.log('@@@quoteLinesToInsert',quoteLinesToInsert);
-    // Batch insert using createMultiple()
-    const batches = chunkArray(quoteLinesToInsert, 200);
-    const results = [];
 
-    for (const batch of batches) {
-      const batchResult = await org.dataApi.createMultiple(batch);
-      results.push(...batchResult);
+    // Filter out invalid records (e.g., missing product or quantity)
+    const validQuoteLines = quoteLinesToInsert.filter(ql =>
+      ql.SBQQ__Product__c && ql.SBQQ__Quantity__c && Number(ql.SBQQ__Quantity__c) > 0
+    );
+
+    if (!validQuoteLines.length) {
+      return res.status(400).json({ error: 'No valid quote lines to create (missing product or quantity).' });
     }
 
-    res.json({
-      message: 'Quote lines created in batches',
-      totalCreated: results.length,
-      details: results
+    // Batch via UnitOfWork: commit in chunks to avoid oversized transactions
+    const batchSize = 200;
+    const batches = chunkArray(validQuoteLines, batchSize);
+    const createdIds = [];
+
+    for (const batch of batches) {
+      const uow = org.dataApi.newUnitOfWork();
+      const refs = [];
+
+      for (const ql of batch) {
+        const ref = uow.registerCreate('SBQQ__QuoteLine__c', ql);
+        refs.push(ref);
+      }
+
+      const commitRes = await org.dataApi.commitUnitOfWork(uow);
+
+      // Collect IDs from commit results
+      for (const ref of refs) {
+        const result = commitRes.getResult(ref);
+        // Some SDKs return { id, success, errors }
+        if (result?.id) {
+          createdIds.push(result.id);
+        } else if (result?.errors?.length) {
+          console.warn('Create error:', result.errors);
+        }
+      }
+    }
+
+    return res.json({
+      message: 'Quote lines created in UnitOfWork batches',
+      createdCount: createdIds.length,
+      createdIds,
+      skippedCount: quoteLinesToInsert.length - validQuoteLines.length
     });
+
   } catch (err) {
     console.error('@@Error creating quote lines:', err);
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 });
+
+
 
 
 
