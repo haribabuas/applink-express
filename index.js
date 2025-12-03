@@ -143,23 +143,15 @@ app.post('/api/generatequotelines', async (req, res) => {
         SBQQ__Quantity__c: lineItem.Quantity__c,
         SBQQ__StartDate__c: toDateOnly(startDate),
         SBQQ__EndDate__c: toDateOnly(endDate),
-        CPQ_License_Type__c: lineItem.License_Type__c || 'MAINT',  // default if missing
-        Source_Install_Line__c: lineItem.Id                         // helpful traceability
+        CPQ_License_Type__c: 'MAINT',  // default if missing
+                     // helpful traceability
       };
     });
 
-    // Filter out invalid records (e.g., missing product or quantity)
-    const validQuoteLines = quoteLinesToInsert.filter(ql =>
-      ql.SBQQ__Product__c && ql.SBQQ__Quantity__c && Number(ql.SBQQ__Quantity__c) > 0
-    );
-
-    if (!validQuoteLines.length) {
-      return res.status(400).json({ error: 'No valid quote lines to create (missing product or quantity).' });
-    }
-
+console.log('@@@quoteLinesToInsert',quoteLinesToInsert);
     // Batch via UnitOfWork: commit in chunks to avoid oversized transactions
     const batchSize = 200;
-    const batches = chunkArray(validQuoteLines, batchSize);
+    const batches = chunkArray(quoteLinesToInsert, batchSize);
     const createdIds = [];
 
     for (const batch of batches) {
@@ -187,9 +179,7 @@ app.post('/api/generatequotelines', async (req, res) => {
 
     return res.json({
       message: 'Quote lines created in UnitOfWork batches',
-      createdCount: createdIds.length,
-      createdIds,
-      skippedCount: quoteLinesToInsert.length - validQuoteLines.length
+      createdCount: createdIds.length
     });
 
   } catch (err) {
