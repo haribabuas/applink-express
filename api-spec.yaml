@@ -39,8 +39,8 @@ paths:
       x-sfdc:
         heroku:
           authorization:
-            connectedApp: GenerateQuoteLineConnectedApp
-            permissionSet: GenerateQuoteLinePermissions
+            connectedApp: HerokuGenerateQuoteLineApp
+            permissionSet: HerokuGenerateQuoteLinePS
       responses:
         "200":
           description: OK
