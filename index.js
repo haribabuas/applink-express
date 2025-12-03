@@ -67,36 +67,19 @@ app.post('/api/generatequotelines', async (req, res) => {
     return chunks;
   };
 
-  // Safe nested getter: "A.B.C" → obj?.A?.B?.C
-  const getByPath = (obj, path) => {
-    if (!obj || !path) return undefined;
-    return path.split('.').reduce((acc, key) => (acc && acc[key] !== undefined ? acc[key] : undefined), obj);
-  };
-
-  // Date-only string in UTC
-  const toDateOnly = (d) => {
-    const date = new Date(d);
-    if (Number.isNaN(date.getTime())) return null;
-    const yyyy = date.getUTCFullYear();
-    const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
-    const dd = String(date.getUTCDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
-  };
-
-  // If you need special logic for start date, adjust here
   const getAdjustedStartDate = (endDateStr) => {
-    // Example: start = end - 12 months OR default to today
     const end = new Date(endDateStr);
-    if (Number.isNaN(end.getTime())) return new Date(); // fallback: today
+    if (Number.isNaN(end.getTime())) return new Date();
     const start = new Date(end);
     start.setMonth(start.getMonth() - 12);
     return start;
   };
 
-  // ---------- Main ----------
   try {
-    // Build SOQL safely
-    const idsString = sapLineIds.map(id => `'${String(id).replace(/'/g, "\\'")}'`).join(',');
+    // Correct single-quote escaping for SOQL literals: use ''
+    const idsString = sapLineIds
+      .map(id => `'${String(id).replace(/'/g, "''")}'`)
+      .join(',');
 
     const query = `
       SELECT
@@ -121,32 +104,37 @@ app.post('/api/generatequotelines', async (req, res) => {
       return res.status(404).json({ error: 'No SAP install lines found' });
     }
 
-const quoteLinesToInsert = sapLines.map((lineItem) => {
-  const f = lineItem.fields;
-  const startDate = f.end_date_consolidated__c
-    ? getAdjustedStartDate(f.end_date_consolidated__c)
-    : new Date();
-  const endDate = new Date(startDate);
-  endDate.setMonth(endDate.getMonth() + 12);
+    const quoteLinesToInsert = sapLines.map((lineItem) => {
+      const f = lineItem.fields;
 
-  return {
-    SBQQ__Quote__c: quoteId,
-    SBQQ__Product__c: f.cpq_product__c,
-    Install__c: f.install__c,
-    Access_Range__c: f.cpq_product__r?.fields?.access_range__c, // safe nested access
-    Account__c: f.install__r?.fields?.accountid__c,
-    Partner_Account__c: f.install__r?.fields?.partner_account__c,
-    Sales_Org__c: f.install__r?.fields?.cpq_sales_org__c,
-    SBQQ__Quantity__c: f.quantity__c,
-    SBQQ__StartDate__c: startDate.toISOString().split('T')[0],
-    SBQQ__EndDate__c: endDate.toISOString().split('T')[0],
-    CPQ_License_Type__c: f.license_type__c || 'MAINT'
-  };
-});
+      const startDate = f.End_Date_Consolidated__c
+        ? getAdjustedStartDate(f.End_Date_Consolidated__c)
+        : new Date();
 
+      const endDate = new Date(startDate);
+      endDate.setMonth(endDate.getMonth() + 12);
 
-console.log('@@@quoteLinesToInsert',quoteLinesToInsert);
-    // Batch via UnitOfWork: commit in chunks to avoid oversized transactions
+      // Build payload using exact API names from SBQQ__QuoteLine__c
+      const ql = {
+        SBQQ__Quote__c: quoteId,
+        SBQQ__Product__c: f.CPQ_Product__c,
+        Install__c: f.Install__c,
+        // Relationship fields read from query results:
+        Access_Range__c: f.CPQ_Product__r?.fields?.Access_Range__c ?? null,
+        Account__c: f.Install__r?.fields?.AccountID__c ?? null,
+        Partner_Account__c: f.Install__r?.fields?.Partner_Account__c ?? null,
+        Sales_Org__c: f.Install__r?.fields?.CPQ_Sales_Org__c ?? null,
+        SBQQ__Quantity__c: f.Quantity__c,
+        SBQQ__StartDate__c: startDate.toISOString().split('T')[0],
+        SBQQ__EndDate__c: endDate.toISOString().split('T')[0],
+        CPQ_License_Type__c: 'MAINT',
+      };
+
+      return ql;
+    });
+
+    console.log('@@@quoteLinesToInsert', quoteLinesToInsert);
+
     const batchSize = 200;
     const batches = chunkArray(quoteLinesToInsert, batchSize);
     const createdIds = [];
@@ -162,10 +150,8 @@ console.log('@@@quoteLinesToInsert',quoteLinesToInsert);
 
       const commitRes = await org.dataApi.commitUnitOfWork(uow);
 
-      // Collect IDs from commit results
       for (const ref of refs) {
         const result = commitRes.getResult(ref);
-        // Some SDKs return { id, success, errors }
         if (result?.id) {
           createdIds.push(result.id);
         } else if (result?.errors?.length) {
@@ -176,14 +162,19 @@ console.log('@@@quoteLinesToInsert',quoteLinesToInsert);
 
     return res.json({
       message: 'Quote lines created in UnitOfWork batches',
-      createdCount: createdIds.length
+      createdCount: createdIds.length,
     });
 
   } catch (err) {
     console.error('@@Error creating quote lines:', err);
-    return res.status(500).json({ error: err.message });
+    // Bubble up the most useful details when possible
+    return res.status(500).json({
+      error: err?.message || 'Unknown error',
+      details: err?.response?.data ?? undefined,
+    });
   }
 });
+
 
 
 
