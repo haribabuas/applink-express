@@ -28,7 +28,6 @@ app.post('/api/generatequotelines', async (req, res) => {
     return start;
   };
 
-  try {
     const idsString = sapLineIds
       .map(id => `'${String(id).replace(/'/g, "''")}'`)
       .join(',');
@@ -59,10 +58,10 @@ app.post('/api/generatequotelines', async (req, res) => {
     const quoteLinesToInsert = sapLines.map((lineItem) => {
       const f = lineItem.fields;
 
-      // Helper function to clean strings
+      // Helper function to clean strings (already in your code)
       const cleanString = (str) => {
         if (typeof str === 'string') {
-          // Replace smart quotes and non-breaking spaces
+          // Replace smart quotes, non-breaking spaces, and trim whitespace
           return str.replace(/[“”‘’]/g, '"').replace(/\u00A0/g, ' ').trim();
         }
         return str; // Return null, numbers, etc. as is
@@ -94,46 +93,45 @@ app.post('/api/generatequotelines', async (req, res) => {
       return ql;
     });
 
-    console.log('@@@quoteLinesToInsert', quoteLinesToInsert);
+    // Remove the console log that outputs non-strict JS objects.
+    // console.log('@@@quoteLinesToInsert', quoteLinesToInsert); 
 
-    const batchSize = 200;
-    const batches = chunkArray(quoteLinesToInsert, batchSize);
     const createdIds = [];
+    const uow = org.dataApi.newUnitOfWork();
+    const refs = [];
 
-    for (const batch of batches) {
-      const uow = org.dataApi.newUnitOfWork();
-      const refs = [];
+    // Register all quote lines in a single Unit of Work
+    for (const ql of quoteLinesToInsert) {
+      const ref = uow.registerCreate('SBQQ__QuoteLine__c', ql);
+      refs.push(ref);
+    }
 
-      for (const ql of batch) {
-        const ref = uow.registerCreate('SBQQ__QuoteLine__c', ql);
-        refs.push(ref);
-      }
-
+    try {
+      console.log(`Attempting to commit ${quoteLinesToInsert.length} records in a single transaction.`);
       const commitRes = await org.dataApi.commitUnitOfWork(uow);
 
+      // Process results if successful
       for (const ref of refs) {
         const result = commitRes.getResult(ref);
         if (result?.id) {
           createdIds.push(result.id);
         } else if (result?.errors?.length) {
-          console.warn('Create error:', result.errors);
+          console.warn('Create error for a single record after successful commit:', result.errors);
         }
       }
+      console.log(`Successfully created ${createdIds.length} quote lines.`);
+
+    } catch (error) {
+      // THIS CATCH BLOCK WILL TRIGGER ON JSON_PARSER_ERROR
+      console.error('CRITICAL ERROR: Failed during commitUnitOfWork for entire payload.');
+      console.error('The specific error was:', error.message);
+      
+      // Log the ENTIRE payload as a strict JSON string for debugging the bad character
+      console.error('Problematic Payload Data JSON:', JSON.stringify(quoteLinesToInsert, null, 2));
+
+      throw new Error(`Process halted due to JSON_PARSER_ERROR. Check logs above for problematic JSON.`);
     }
 
-    return res.json({
-      message: 'Quote lines created in UnitOfWork batches',
-      createdCount: createdIds.length,
-    });
-
-  } catch (err) {
-    console.error('@@Error creating quote lines:', err);
-    // Bubble up the most useful details when possible
-    return res.status(500).json({
-      error: err?.message || 'Unknown error',
-      details: err?.response?.data ?? undefined,
-    });
-  }
 });
 
 
