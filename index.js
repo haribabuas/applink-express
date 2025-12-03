@@ -68,7 +68,12 @@ app.post('/api/generatequotelines', async (req, res) => {
         return str; // Return null, numbers, etc. as is
       };
 
-      // ... (date logic)
+      const startDate = f.End_Date_Consolidated__c
+        ? getAdjustedStartDate(f.End_Date_Consolidated__c)
+        : new Date();
+
+      const endDate = new Date(startDate);
+      endDate.setMonth(endDate.getMonth() + 12);
 
       // Build payload using exact API names from SBQQ__QuoteLine__c
       const ql = {
