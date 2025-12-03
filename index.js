@@ -98,16 +98,17 @@ app.post('/api/generatequotelines', async (req, res) => {
 
     const batches = chunkArray(quoteLinesToInsert, 200);
     const results = [];
-
+    console.log('@@@batches',batches);
     for (const batch of batches) {
       const result = await org.dataApi.create('SBQQ__QuoteLine__c',batch);
+      console.log('@@@resultOrg',result);
       results.push(...result);
     }
     console.error('@@Results ', results);
-    res.status(200).json({ message: 'Quote lines created', totalInserted: results.length });
+    res.json({ message: 'Quote lines created', totalInserted: results.length });
   } catch (err) {
     console.error('@@Error creating quote lines:', err);
-    res.status(500).json({ error: err.message });
+    res.json({ error: err.message });
   }
 });
 
