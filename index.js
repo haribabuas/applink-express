@@ -46,9 +46,11 @@ function chunkArray(array, size) {
   return result;
 }
 
+
+
 app.post('/api/generatequotelines', async (req, res) => {
   const { quoteId, sapLineIds } = req.body;
-  
+
   if (!quoteId || !sapLineIds?.length) {
     return res.status(400).json({ error: 'Missing required data' });
   }
@@ -56,24 +58,43 @@ app.post('/api/generatequotelines', async (req, res) => {
   const sf = applinkSDK.parseRequest(req.headers, req.body, null);
   const org = sf.context.org;
 
-  try {
-    const sapLineChunks = chunkArray(sapLineIds, 200);
+  // Helper: chunk array into batches
+  const chunkArray = (arr, size) => {
+    const chunks = [];
+    for (let i = 0; i < arr.length; i += size) {
+      chunks.push(arr.slice(i, i + size));
+    }
+    return chunks;
+  };
 
-    const sapLineQueries = sapLineChunks.map(chunk => {
-      const query = `
-        SELECT Id, License_Type__c, Quantity__c, End_Date_Consolidated__c,
-               CPQ_Product__c, Install__c,
-               CPQ_Product__r.Access_Range__c,
-               Install__r.AccountID__c, Install__r.Partner_Account__c, Install__r.CPQ_Sales_Org__c
-        FROM SAP_Install_Line_Item__c
-        WHERE Id IN (${chunk.map(id => `'${id}'`).join(',')})
-      `;
-      return org.dataApi.query(query);
-    });
-console.log('@@@sapLineQueries',sapLineQueries.records);
-    const queryResults = await Promise.all(sapLineQueries.records);
-    const allSapLines = queryResults.flatMap(result => result.records);
-    console.log(`Total SAP lines fetched: ${allSapLines.length}`);
+  // Helper: adjust start date logic
+  const getAdjustedStartDate = (endDateStr) => {
+    const endDate = new Date(endDateStr);
+    if (isNaN(endDate)) return new Date();
+    return endDate; // or apply custom logic if needed
+  };
+
+  try {
+    // Safely format IDs for SOQL
+    const idsString = sapLineIds.map(id => `'${id}'`).join(',');
+
+    const query = `
+      SELECT Id, License_Type__c, Quantity__c, End_Date_Consolidated__c,
+             CPQ_Product__c, Install__c,
+             CPQ_Product__r.Access_Range__c,
+             Install__r.AccountID__c, Install__r.Partner_Account__c, Install__r.CPQ_Sales_Org__c
+      FROM SAP_Install_Line_Item__c
+      WHERE Id IN (${idsString})
+    `;
+
+    const sapLineQueries = await org.dataApi.query(query);
+    const allSapLines = sapLineQueries.records || [];
+
+    if (!allSapLines.length) {
+      return res.status(404).json({ error: 'No SAP install lines found' });
+    }
+    console.log('@@@allSapLines',allSapLines);
+    // Build quote line records
     const quoteLinesToInsert = allSapLines.map(lineItem => {
       const startDate = lineItem.End_Date_Consolidated__c
         ? getAdjustedStartDate(lineItem.End_Date_Consolidated__c)
@@ -83,8 +104,8 @@ console.log('@@@sapLineQueries',sapLineQueries.records);
 
       return {
         attributes: { type: 'SBQQ__QuoteLine__c' },
-        SBQQ__Product__c: lineItem.CPQ_Product__c,
         SBQQ__Quote__c: quoteId,
+        SBQQ__Product__c: lineItem.CPQ_Product__c,
         Install__c: lineItem.Install__c,
         Access_Range__c: lineItem.CPQ_Product__r?.Access_Range__c,
         Account__c: lineItem.Install__r?.AccountID__c,
@@ -96,22 +117,28 @@ console.log('@@@sapLineQueries',sapLineQueries.records);
         CPQ_License_Type__c: 'MAINT'
       };
     });
-
+    console.log('@@@quoteLinesToInsert',quoteLinesToInsert);
+    // Batch insert using createMultiple()
     const batches = chunkArray(quoteLinesToInsert, 200);
     const results = [];
-    console.log('@@@batches',batches);
+
     for (const batch of batches) {
-      const result = await org.dataApi.create(batch);
-      console.log('@@@resultOrg',result);
-      results.push(...result);
+      const batchResult = await org.dataApi.createMultiple(batch);
+      results.push(...batchResult);
     }
-    console.error('@@Results ', results);
-    res.json({ message: 'Quote lines created', totalInserted: results.length });
+
+    res.json({
+      message: 'Quote lines created in batches',
+      totalCreated: results.length,
+      details: results
+    });
   } catch (err) {
     console.error('@@Error creating quote lines:', err);
-    res.json({ error: err.message });
+    res.status(500).json({ error: err.message });
   }
 });
+
+
 
 
 
