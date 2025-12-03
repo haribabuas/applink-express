@@ -12,9 +12,9 @@ app.post('/api/generatequotelines', async (req, res) => {
   }
   const sf = applinkSDK.parseRequest(req.headers, req.body, null);
   const org = sf.context.org;
-    const sapRes = await org.dataApi.query(query);
-    const sapLines = sapRes.records[0].fields;
-  console.log('@@@sapLines',sapLines);
+   // const sapRes = await org.dataApi.query(query);
+    //const sapLines = sapRes.records[0].fields;
+  //console.log('@@@sapLines',sapLines);
     const uow = org.dataApi.newUnitOfWork();
   const refId = uow.registerCreate('Account', {
       Name: 'Heroku Account'
@@ -23,6 +23,7 @@ app.post('/api/generatequotelines', async (req, res) => {
     console.log('@@@refid',refId);
     const commitResult = await org.dataApi.commitUnitOfWork(uow);
     console.log('@@@commitResult',commitResult);
+    console.log('@@@reslt',commitResult.getRefId(refId).id);
    res.json({
       message: 'created '
     });
