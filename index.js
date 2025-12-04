@@ -63,28 +63,6 @@ app.post('/api/generatequotelines', async (req, res) => {
         FROM SAP_Install_Line_Item__c
         WHERE Id IN (${idsString})`;
       
-   /* const sapLineQueries = await dataApi.query(query);
-     console.log('@@@sapLineQueries',sapLineQueries);
-    const sapLines = sapLineQueries.records[0].fields;
-    console.log('@@@saplines',sapLines);
-    const uow = dataApi.newUnitOfWork();
-    const refId = uow.registerCreate({
-        type: 'SBQQ__QuoteLine__c',
-        fields: {
-            SBQQ__Product__c: sapLines.CPQ_Product__c,
-            SBQQ__Quote__c: quoteId,
-            Install__c: sapLines.Install__c,
-            Access_Range__c: sapLines.CPQ_Product__r?.fields?.Access_Range__c,
-            Account__c: sapLines.Install__r?.fields?.accountid__c,
-            Partner_Account__c: sapLines.Install__r?.fields?.Partner_Account__c,
-             Sales_Org__c: sapLines.Install__r?.fields?.CPQ_Sales_Org__c,
-            SBQQ__Quantity__c: sapLines.Quantity__c,
-            SBQQ__StartDate__c: startDate.toISOString().split('T')[0],
-            SBQQ__EndDate__c: endDate.toISOString().split('T')[0],
-            CPQ_License_Type__c: 'MAINT',
-        },
-    });*/
-
  const MAX_PER_COMMIT = 200;
  
 const chunk = (arr, size) => {
@@ -120,6 +98,14 @@ for (const [idx, rec] of batch.entries()) {
   const accountId = sl.Install__r?.fields?.AccountID__c;
   const partnerAccountId = sl.Install__r?.fields?.Partner_Account__c;
   const  maintTierLevel = sl.Maint_Tier_Level__c;
+  
+  const licenseMap = {
+    'QA-Test': 'TESTM',
+    'Backup': 'BKUPM'
+  };
+
+  const licenseType = licenseMap[sl?.License_Type__c] || 'MAINT';
+
   const monthlyNet = sl.Monthly_Net_Maint__c == null ? 0 : sl.Monthly_Net_Maint__c;
   const equipmentNumber = sl.SAP_LI_Equipment_Numbers__c && sl.SAP_LI_Equipment_Numbers__c.trim()
     ? sl.SAP_LI_Equipment_Numbers__c.trim()
@@ -159,7 +145,7 @@ if (
       SBQQ__EndDate__c: endDate.toISOString().split('T')[0],
       Access_Range__c: accessRange,
       Sales_Org__c: salesOrg,
-      CPQ_License_Type__c: 'MAINT',
+      CPQ_License_Type__c: licenseType,
     },
   });
 
