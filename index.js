@@ -67,6 +67,7 @@ app.post('/api/generatequotelines', async (req, res) => {
     const sapLineQueries = await org.dataApi.query(query);
     const saplines = sapLineQueries.records[0].fields;
     console.log(`Total SAP lines fetched: ${saplines.length}`);
+    const uow = dataApi.newUnitOfWork();
     const refId = uow.registerCreate({
         type: 'SBQQ__QuoteLine__c',
         fields: {
