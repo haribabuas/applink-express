@@ -62,7 +62,7 @@ app.post('/api/generatequotelines', async (req, res) => {
         FROM SAP_Install_Line_Item__c
         WHERE Id IN (${idsString})`;
       
-    const sapLineQueries = await dataApi.query(query);
+   /* const sapLineQueries = await dataApi.query(query);
      console.log('@@@sapLineQueries',sapLineQueries);
     const sapLines = sapLineQueries.records[0].fields;
     console.log('@@@saplines',sapLines);
@@ -73,17 +73,60 @@ app.post('/api/generatequotelines', async (req, res) => {
             SBQQ__Product__c: sapLines.CPQ_Product__c,
             SBQQ__Quote__c: quoteId,
             Install__c: sapLines.Install__c,
-            //Access_Range__c: sapLines.CPQ_Product__r?.fields?.Access_Range__c,
-            //Account__c: sapLines.Install__r?.fields?.accountid__c,
-            //Partner_Account__c: sapLines.Install__r?.fields?.Partner_Account__c,
-             // Sales_Org__c: sapLines.Install__r?.fields?.CPQ_Sales_Org__c,
+            Access_Range__c: sapLines.CPQ_Product__r?.fields?.Access_Range__c,
+            Account__c: sapLines.Install__r?.fields?.accountid__c,
+            Partner_Account__c: sapLines.Install__r?.fields?.Partner_Account__c,
+             Sales_Org__c: sapLines.Install__r?.fields?.CPQ_Sales_Org__c,
             SBQQ__Quantity__c: sapLines.Quantity__c,
-            //SBQQ__StartDate__c: startDate.toISOString().split('T')[0],
-            //SBQQ__EndDate__c: endDate.toISOString().split('T')[0],
+            SBQQ__StartDate__c: startDate.toISOString().split('T')[0],
+            SBQQ__EndDate__c: endDate.toISOString().split('T')[0],
             CPQ_License_Type__c: 'MAINT',
         },
-    });
+    });*/
 
+const sapLineQueries = await dataApi.query(query);
+console.log('@@@sapLineQueries', sapLineQueries);
+
+const records = sapLineQueries?.records ?? [];
+const refIds = [];
+
+for (const [idx, rec] of records.entries()) {
+  const sapLines = rec?.fields;
+  if (!sapLines) {
+    console.warn(`Record ${idx} has no fields; skipping.`);
+    continue;
+  }
+
+ 
+  const quantity = sapLines.Quantity__c;
+  const productId = sapLines.CPQ_Product__c;
+  const installId = sapLines.Install__c;     
+  const accessRange = sapLines.CPQ_Product__r?.fields?.Access_Range__c;
+  const salesOrg   = sapLines.Install__r?.fields?.CPQ_Sales_Org__c;
+
+  const startDate = sapLines.End_Date_Consolidated__c
+        ? getAdjustedStartDate(sapLines.End_Date_Consolidated__c)
+        : new Date();
+      const endDate = new Date(startDate);
+      endDate.setMonth(endDate.getMonth() + 12);
+
+  const refId = uow.registerCreate({
+    type: 'SBQQ__QuoteLine__c',
+    fields: {
+      SBQQ__Product__c: productId,
+      SBQQ__Quote__c: quoteId,
+      Install__c: installId,
+      SBQQ__Quantity__c: quantity,
+      SBQQ__StartDate__c: startDate.toISOString().split('T')[0],
+      SBQQ__EndDate__c: endDate.toISOString().split('T')[0],
+      Access_Range__c: accessRange,
+      Sales_Org__c: salesOrg,
+      CPQ_License_Type__c: 'MAINT',
+    },
+  });
+
+  refIds.push(refId);
+}
     const response = await dataApi.commitUnitOfWork(uow);
     console.error('@@response ', response);
     res.status(200).json({ message: 'Quote lines created'});
