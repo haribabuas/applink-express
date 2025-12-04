@@ -84,20 +84,33 @@ app.post('/api/generatequotelines', async (req, res) => {
         },
     });*/
 
+ const MAX_PER_COMMIT = 200;
+ 
+const chunk = (arr, size) => {
+  const out = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+};
+   
+
 const sapLineQueries = await dataApi.query(query);
 console.log('@@@sapLineQueries', sapLineQueries);
 
 const records = sapLineQueries?.records ?? [];
+
+const batches = chunk(records, MAX_PER_COMMIT);
+const allResults = [];
+for (const [batchIdx, batch] of batches.entries()) {
+    console.log(`@@@processing batch ${batchIdx + 1}/${batches.length} (size=${batch.length})`);
 const refIds = [];
  const uow = dataApi.newUnitOfWork();
-for (const [idx, rec] of records.entries()) {
+for (const [idx, rec] of batch.entries()) {
   const sapLines = rec?.fields;
   if (!sapLines) {
     console.warn(`Record ${idx} has no fields; skipping.`);
     continue;
   }
 
- 
   const quantity = sapLines.Quantity__c;
   const productId = sapLines.CPQ_Product__c;
   const installId = sapLines.Install__c;     
@@ -129,6 +142,9 @@ for (const [idx, rec] of records.entries()) {
 }
     const response = await dataApi.commitUnitOfWork(uow);
     console.error('@@response ', response);
+    console.log(`@@@commit OK for batch ${batchIdx + 1}`, res);
+    allResults.push({ batch: batchIdx + 1, refIds, res });
+}
     res.status(200).json({ message: 'Quote lines created'});
   } catch (err) {
     console.error('@@Error creating quote lines:', err);
