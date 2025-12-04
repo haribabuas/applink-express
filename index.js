@@ -107,7 +107,7 @@ const refIds = [];
  const uow = dataApi.newUnitOfWork();
 for (const [idx, rec] of batch.entries()) {
   const sl = rec?.fields;
-  if (!sapLines) {
+  if (!sl) {
     console.warn(`Record ${idx} has no fields; skipping.`);
     continue;
   }
