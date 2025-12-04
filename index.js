@@ -89,7 +89,7 @@ console.log('@@@sapLineQueries', sapLineQueries);
 
 const records = sapLineQueries?.records ?? [];
 const refIds = [];
-
+ const uow = dataApi.newUnitOfWork();
 for (const [idx, rec] of records.entries()) {
   const sapLines = rec?.fields;
   if (!sapLines) {
