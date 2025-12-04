@@ -135,7 +135,7 @@ if (
 }
 
   const startDate = sl.End_Date_Consolidated__c
-        ? getAdjustedStartDate(sapLines.End_Date_Consolidated__c)
+        ? getAdjustedStartDate(sl.End_Date_Consolidated__c)
         : new Date();
       const endDate = new Date(startDate);
       endDate.setMonth(endDate.getMonth() + 12);
