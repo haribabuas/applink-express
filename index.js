@@ -51,7 +51,7 @@ app.post('/api/generatequotelines', async (req, res) => {
   const sf = applinkSDK.parseRequest(req.headers, req.body, null);
   const org = sf.context.org;
   const dataApi = sf.context.org.dataApi;
-  try {
+  
     const idsString = sapLineIds
       .map(id => `'${String(id).replace(/'/g, "''")}'`)
       .join(',');
@@ -140,16 +140,17 @@ for (const [idx, rec] of batch.entries()) {
 
   refIds.push(refId);
 }
+ try {
     const response = await dataApi.commitUnitOfWork(uow);
     console.error('@@response ', response);
-    console.log(`@@@commit OK for batch ${batchIdx + 1}`, res);
-    allResults.push({ batch: batchIdx + 1, refIds, res });
+    console.log(`@@@commit OK for batch ${batchIdx + 1}`);
+    //allResults.push({ batch: batchIdx + 1, refIds, res });
+    } catch (err) {
+    console.error(`@@@commit FAILED for batch ${batchIdx + 1}`, err);
+    throw err; 
+  }
 }
     res.status(200).json({ message: 'Quote lines created'});
-  } catch (err) {
-    console.error('@@Error creating quote lines:', err);
-    res.status(500).json({ error: err.message });
-  }
 });
 
 
