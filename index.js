@@ -50,21 +50,20 @@ app.post('/api/generatequotelines', async (req, res) => {
 
   const sf = applinkSDK.parseRequest(req.headers, req.body, null);
   const org = sf.context.org;
-
+  const dataApi = sf.context.org.dataApi;
   try {
     const idsString = sapLineIds
       .map(id => `'${String(id).replace(/'/g, "''")}'`)
       .join(',');
-      const query = `
-        SELECT Id, License_Type__c, Quantity__c, End_Date_Consolidated__c,
+      const query = `SELECT Id, License_Type__c, Quantity__c, End_Date_Consolidated__c,
                CPQ_Product__c, Install__c,
                CPQ_Product__r.Access_Range__c,
                Install__r.AccountID__c, Install__r.Partner_Account__c, Install__r.CPQ_Sales_Org__c
         FROM SAP_Install_Line_Item__c
-        WHERE Id IN (${idsString})
-      `;
+        WHERE Id IN (${idsString})`;
       
-    const sapLineQueries = await org.dataApi.query(query);
+    const sapLineQueries = await dataApi.query(query);
+     console.log('@@@sapLineQueries',sapLineQueries);
     const saplines = sapLineQueries.records[0].fields;
     console.log(`Total SAP lines fetched: ${saplines.length}`);
     const uow = dataApi.newUnitOfWork();
@@ -85,7 +84,7 @@ app.post('/api/generatequotelines', async (req, res) => {
         },
     });
 
-    const response = await org.dataApi.commitUnitOfWork(uow);
+    const response = await dataApi.commitUnitOfWork(uow);
     console.error('@@response ', response);
     res.status(200).json({ message: 'Quote lines created'});
   } catch (err) {
