@@ -5,8 +5,7 @@ const express = require('express');
 const app = express();
 app.use(express.json());
 
-
-app.post('/test/generatequotelines', async (req, res) => {
+/*app.post('/test/generatequotelines', async (req, res) => {
   const { quoteId, sapLineIds } = req.body;
 
     const sf = applinkSDK.parseRequest(req.headers, req.body, null);
@@ -29,9 +28,7 @@ console.log('@@@Org result:', response);
       message: 'Account created successfully'
     });
  
-});
-
-
+});*/
 
 function chunkArray(array, size) {
   const result = [];
