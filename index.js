@@ -55,9 +55,10 @@ app.post('/api/generatequotelines', async (req, res) => {
     const idsString = sapLineIds
       .map(id => `'${String(id).replace(/'/g, "''")}'`)
       .join(',');
-      const query = `SELECT Id, License_Type__c, Quantity__c, End_Date_Consolidated__c,
-               CPQ_Product__c, Install__c,
-               CPQ_Product__r.Access_Range__c,
+      const query = `SELECT Id, License_Type__c, Quantity__c, End_Date_Consolidated__c,O2O_Attribute_Discount__c,
+               CPQ_Product__c, Install__c,Maint_Tier_Level__c,SAP_LI_Equipment_Numbers__c,CPQ_Product__r.Global__c,
+               Install__r.Price_List_Type__c,  
+               CPQ_Product__r.Access_Range__c,SAP_SYNC_ID__c,Prior_Quantity__c,ACV_12_Mth__c,
                Install__r.AccountID__c, Install__r.Partner_Account__c, Install__r.CPQ_Sales_Org__c
         FROM SAP_Install_Line_Item__c
         WHERE Id IN (${idsString})`;
@@ -105,19 +106,35 @@ for (const [batchIdx, batch] of batches.entries()) {
 const refIds = [];
  const uow = dataApi.newUnitOfWork();
 for (const [idx, rec] of batch.entries()) {
-  const sapLines = rec?.fields;
+  const sl = rec?.fields;
   if (!sapLines) {
     console.warn(`Record ${idx} has no fields; skipping.`);
     continue;
   }
 
-  const quantity = sapLines.Quantity__c;
-  const productId = sapLines.CPQ_Product__c;
-  const installId = sapLines.Install__c;     
-  const accessRange = sapLines.CPQ_Product__r?.fields?.Access_Range__c;
-  const salesOrg   = sapLines.Install__r?.fields?.CPQ_Sales_Org__c;
+  const quantity = sl.Quantity__c;
+  const productId = sl.CPQ_Product__c;
+  const installId = sl.Install__c;     
+  const accessRange = sl.CPQ_Product__r?.fields?.Access_Range__c;
+  const salesOrg   = sl.Install__r?.fields?.CPQ_Sales_Org__c;
+  const accountId = sl.Install__r?.fields?.AccountID__c;
+  const partnerAccountId = sl.Install__r?.fields?.Partner_Account__c;
+  const  maintTierLevel = sl.Maint_Tier_Level__c;
+  const monthlyNet = sl.Monthly_Net_Maint__c == null ? 0 : sl.Monthly_Net_Maint__c;
+  const equipmentNumber = sl.SAP_LI_Equipment_Numbers__c && sl.SAP_LI_Equipment_Numbers__c.trim()
+    ? sl.SAP_LI_Equipment_Numbers__c.trim()
+    : (sl.SAP_SYNC_ID__c && sl.SAP_SYNC_ID__c.trim()
+        ? sl.SAP_SYNC_ID__c.trim()
+        : '');
+ const globalPricing = false;
+if (
+    sl?.CPQ_Product__r?.Global__c === 'Yes' &&
+ (sl?.Install__r?.Price_List_Type__c === 'GE' || sl?.Install__r?.Price_List_Type__c === 'GU')
+) {
+    globalPricing = true;
+}
 
-  const startDate = sapLines.End_Date_Consolidated__c
+  const startDate = sl.End_Date_Consolidated__c
         ? getAdjustedStartDate(sapLines.End_Date_Consolidated__c)
         : new Date();
       const endDate = new Date(startDate);
@@ -129,7 +146,15 @@ for (const [idx, rec] of batch.entries()) {
       SBQQ__Product__c: productId,
       SBQQ__Quote__c: quoteId,
       Install__c: installId,
+      Account__c: accountId,
+      Partner_Account__c :  partnerAccountId,
+      Maint_Tier_Level__c : maintTierLevel,
       SBQQ__Quantity__c: quantity,
+      Prior_Equipment__c : equipmentNumber,
+      O2O_Attribute_Quantity__c : sl.Prior_Quantity__c,
+      Prior_ACV_12_Mth__c : sl.ACV_12_Mth__c,
+      O2O_Attribute_Percent__c : sl.O2O_Attribute_Discount__c,
+      Global_Pricing__c : globalPricing,
       SBQQ__StartDate__c: startDate.toISOString().split('T')[0],
       SBQQ__EndDate__c: endDate.toISOString().split('T')[0],
       Access_Range__c: accessRange,
