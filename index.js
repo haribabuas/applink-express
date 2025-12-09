@@ -148,15 +148,15 @@ if (
 
   refIds.push(refId);
 }
- try {
+ //try {
     const response = await dataApi.commitUnitOfWork(uow);
     console.error('@@response ', response);
     console.log(`@@@commit OK for batch ${batchIdx + 1}`);
     //allResults.push({ batch: batchIdx + 1, refIds, res });
-    } catch (err) {
-    console.error(`@@@commit FAILED for batch ${batchIdx + 1}`, err);
-    throw err; 
-  }
+ //   } catch (err) {
+  //  console.error(`@@@commit FAILED for batch ${batchIdx + 1}`, err);
+   // throw err; 
+  //}
 }
     res.status(200).json({ message: 'Quote lines created'});
 });
