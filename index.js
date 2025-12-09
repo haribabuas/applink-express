@@ -38,128 +38,108 @@ function chunkArray(array, size) {
   return result;
 }
 
-app.post('/api/generatequotelines', async (req, res) => {
-  const { quoteId, sapLineIds } = req.body;
-  
-  if (!quoteId || !sapLineIds?.length) {
-    return res.status(400).json({ error: 'Missing required data' });
-  }
 
-  const sf = applinkSDK.parseRequest(req.headers, req.body, null);
-  const org = sf.context.org;
-  const dataApi = sf.context.org.dataApi;
-  
+app.post('/api/generatequotelines', async (req, res, next) => {
+  try {
+    const { quoteId, sapLineIds } = req.body;
+    if (!quoteId || !sapLineIds?.length) {
+ return res.status(400).json({ error: 'Missing required data' });
+    }
+
+    const sf = applinkSDK.parseRequest(req.headers, req.body, null);
+    const dataApi = sf.context.org.dataApi;
+
     const idsString = sapLineIds
       .map(id => `'${String(id).replace(/'/g, "''")}'`)
       .join(',');
-      const query = `SELECT Id, License_Type__c, Quantity__c, End_Date_Consolidated__c,O2O_Attribute_Discount__c,
-               CPQ_Product__c, Install__c,Maint_Tier_Level__c,SAP_LI_Equipment_Numbers__c,CPQ_Product__r.Global__c,
-               Install__r.Price_List_Type__c,  
-               CPQ_Product__r.Access_Range__c,SAP_SYNC_ID__c,Prior_Quantity__c,ACV_12_Mth__c,
-               Install__r.AccountID__c, Install__r.Partner_Account__c, Install__r.CPQ_Sales_Org__c
-        FROM SAP_Install_Line_Item__c
-        WHERE Id IN (${idsString})`;
-      
- const MAX_PER_COMMIT = 200;
- 
-const chunk = (arr, size) => {
-  const out = [];
-  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
-  return out;
-};
-   
 
-const sapLineQueries = await dataApi.query(query);
-console.log('@@@sapLineQueries', sapLineQueries);
+    const query = `SELECT Id, License_Type__c, Quantity__c, End_Date_Consolidated__c, O2O_Attribute_Discount__c,
+                   CPQ_Product__c, Install__c, Maint_Tier_Level__c, SAP_LI_Equipment_Numbers__c, CPQ_Product__r.Global__c,
+                   Install__r.Price_List_Type__c, CPQ_Product__r.Access_Range__c, SAP_SYNC_ID__c, Prior_Quantity__c, ACV_12_Mth__c,
+                   Install__r.AccountID__c, Install__r.Partner_Account__c, Install__r.CPQ_Sales_Org__c
+                   FROM SAP_Install_Line_Item__c WHERE Id IN (${idsString})`;
 
-const records = sapLineQueries?.records ?? [];
+    const chunk = (arr, size) => { const out = []; for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size)); return out; };
 
-const batches = chunk(records, MAX_PER_COMMIT);
-const allResults = [];
-for (const [batchIdx, batch] of batches.entries()) {
-    console.log(`@@@processing batch ${batchIdx + 1}/${batches.length} (size=${batch.length})`);
-const refIds = [];
- const uow = dataApi.newUnitOfWork();
-for (const [idx, rec] of batch.entries()) {
-  const sl = rec?.fields;
-  if (!sl) {
-    console.warn(`Record ${idx} has no fields; skipping.`);
-    continue;
+    const sapLineQueries = await dataApi.query(query);
+    const records = sapLineQueries?.records ?? [];
+
+    const MAX_PER_COMMIT = 50; 
+    const batches = chunk(records, MAX_PER_COMMIT);
+
+    for (const [batchIdx, batch] of batches.entries()) {
+      console.log(`@@@processing batch ${batchIdx + 1}/${batches.length} (size=${batch.length})`);
+      const uow = dataApi.newUnitOfWork();
+
+      for (const rec of batch) {
+        const sl = rec?.fields;
+        if (!sl) continue;
+
+        const quantity          = sl.Quantity__c;
+        const productId         = sl.CPQ_Product__c;
+        const installId         = sl.Install__c;
+        const accessRange       = sl.CPQ_Product__r?.fields?.Access_Range__c;
+        const salesOrg          = sl.Install__r?.fields?.CPQ_Sales_Org__c;
+        const accountId         = sl.Install__r?.fields?.AccountID__c;
+        const partnerAccountId  = sl.Install__r?.fields?.Partner_Account__c;
+        const maintTierLevel    = sl.Maint_Tier_Level__c;
+
+        const licenseMap  = { 'QA-Test': 'TESTM', 'Backup': 'BKUPM' };
+        const licenseType = licenseMap[sl?.License_Type__c] || 'MAINT';
+
+        const equipmentNumber =
+          sl.SAP_LI_Equipment_Numbers__c?.trim()
+            ? sl.SAP_LI_Equipment_Numbers__c.trim()
+            : (sl.SAP_SYNC_ID__c?.trim() ? sl.SAP_SYNC_ID__c.trim() : '');
+
+        let globalPricing = false; 
+        if (sl?.CPQ_Product__r?.Global__c === 'Yes' &&
+           (sl?.Install__r?.Price_List_Type__c === 'GE' || sl?.Install__r?.Price_List_Type__c === 'GU')) {
+          globalPricing = true;
+        }
+
+        const startDate = sl.End_Date_Consolidated__c
+          ? getAdjustedStartDate(sl.End_Date_Consolidated__c)
+          : new Date();
+        const endDate = new Date(startDate);
+        endDate.setMonth(endDate.getMonth() + 12);
+
+        uow.registerCreate({
+          type: 'SBQQ__QuoteLine__c',
+          fields: {
+            SBQQ__Product__c: productId,
+            SBQQ__Quote__c: quoteId,
+            Install__c: installId,
+            Account__c: accountId,
+            Partner_Account__c: partnerAccountId,
+            Maint_Tier_Level__c: maintTierLevel,
+            SBQQ__Quantity__c: quantity,
+            Prior_Equipment__c: equipmentNumber,
+            O2O_Attribute_Quantity__c: sl.Prior_Quantity__c,
+            Prior_ACV_12_Mth__c: sl.ACV_12_Mth__c,
+            O2O_Attribute_Percent__c: sl.O2O_Attribute_Discount__c,
+            Global_Pricing__c: globalPricing,
+            SBQQ__StartDate__c: startDate.toISOString().split('T')[0],
+            SBQQ__EndDate__c: endDate.toISOString().split('T')[0],
+            Access_Range__c: accessRange,
+            Sales_Org__c: salesOrg,
+            CPQ_License_Type__c: licenseType,
+          },
+        });
+      }
+
+      // Commit each batch; if this single call runs >30s, H12 can still happen
+      const response = await dataApi.commitUnitOfWork(uow);
+      console.log(`@@@commit OK for batch ${batchIdx + 1}`, response);
+    }
+
+    return res.status(200).json({ message: 'Quote lines created' });
+  } catch (err) {
+    console.error('generatequotelines failed', err);
+    return res.status(500).json({ error: 'Internal error', details: String(err?.message || err) });
   }
-
-  const quantity = sl.Quantity__c;
-  const productId = sl.CPQ_Product__c;
-  const installId = sl.Install__c;     
-  const accessRange = sl.CPQ_Product__r?.fields?.Access_Range__c;
-  const salesOrg   = sl.Install__r?.fields?.CPQ_Sales_Org__c;
-  const accountId = sl.Install__r?.fields?.AccountID__c;
-  const partnerAccountId = sl.Install__r?.fields?.Partner_Account__c;
-  const  maintTierLevel = sl.Maint_Tier_Level__c;
-  
-  const licenseMap = {
-    'QA-Test': 'TESTM',
-    'Backup': 'BKUPM'
-  };
-
-  const licenseType = licenseMap[sl?.License_Type__c] || 'MAINT';
-
-  const monthlyNet = sl.Monthly_Net_Maint__c == null ? 0 : sl.Monthly_Net_Maint__c;
-  const equipmentNumber = sl.SAP_LI_Equipment_Numbers__c && sl.SAP_LI_Equipment_Numbers__c.trim()
-    ? sl.SAP_LI_Equipment_Numbers__c.trim()
-    : (sl.SAP_SYNC_ID__c && sl.SAP_SYNC_ID__c.trim()
-        ? sl.SAP_SYNC_ID__c.trim()
-        : '');
- const globalPricing = false;
-if (
-    sl?.CPQ_Product__r?.Global__c === 'Yes' &&
- (sl?.Install__r?.Price_List_Type__c === 'GE' || sl?.Install__r?.Price_List_Type__c === 'GU')
-) {
-    globalPricing = true;
-}
-
-  const startDate = sl.End_Date_Consolidated__c
-        ? getAdjustedStartDate(sl.End_Date_Consolidated__c)
-        : new Date();
-      const endDate = new Date(startDate);
-      endDate.setMonth(endDate.getMonth() + 12);
-
-  const refId = uow.registerCreate({
-    type: 'SBQQ__QuoteLine__c',
-    fields: {
-      SBQQ__Product__c: productId,
-      SBQQ__Quote__c: quoteId,
-      Install__c: installId,
-      Account__c: accountId,
-      Partner_Account__c :  partnerAccountId,
-      Maint_Tier_Level__c : maintTierLevel,
-      SBQQ__Quantity__c: quantity,
-      Prior_Equipment__c : equipmentNumber,
-      O2O_Attribute_Quantity__c : sl.Prior_Quantity__c,
-      Prior_ACV_12_Mth__c : sl.ACV_12_Mth__c,
-      O2O_Attribute_Percent__c : sl.O2O_Attribute_Discount__c,
-      Global_Pricing__c : globalPricing,
-      SBQQ__StartDate__c: startDate.toISOString().split('T')[0],
-      SBQQ__EndDate__c: endDate.toISOString().split('T')[0],
-      Access_Range__c: accessRange,
-      Sales_Org__c: salesOrg,
-      CPQ_License_Type__c: licenseType,
-    },
-  });
-
-  refIds.push(refId);
-}
- //try {
-    const response = await dataApi.commitUnitOfWork(uow);
-    console.error('@@response ', response);
-    console.log(`@@@commit OK for batch ${batchIdx + 1}`);
-    //allResults.push({ batch: batchIdx + 1, refIds, res });
- //   } catch (err) {
-  //  console.error(`@@@commit FAILED for batch ${batchIdx + 1}`, err);
-   // throw err; 
-  //}
-}
-    res.status(200).json({ message: 'Quote lines created'});
 });
+
 
 
 
