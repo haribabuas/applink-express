@@ -49,16 +49,16 @@ app.post('/api/generatequotelines', async (req, res) => {
     return res.status(400).json({ error: 'Missing required data' });
   }
   const jobId = crypto.randomUUID();
-  res.status(202).json({ status: 'accepted', jobId, total: sapLineIds.length });
+  res.status(202).json({  message: 'Quote lines created'});
 
   const sf = applinkSDK.parseRequest(req.headers, req.body, null);
   const dataApi = sf.context.org.dataApi;
-  try {
+  //try {
     await generateQuoteLines({ dataApi, quoteId, sapLineIds });
    
-  } catch (e) {
-    console.error('generatequotelines failed (bg)', e);
-  }
+  //} catch (e) {
+  //  console.error('generatequotelines failed (bg)', e);
+ // }
 });
 
 async function generateQuoteLines({ dataApi, quoteId, sapLineIds }) {
