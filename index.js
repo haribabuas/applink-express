@@ -38,24 +38,18 @@ function chunkArray(array, size) {
   return result;
 }
 
-
-
 //const crypto = require('crypto');
-
 
 app.post('/api/generatequotelines', async (req, res) => {
   const { quoteId, sapLineIds } = req.body;
   if (!quoteId || !Array.isArray(sapLineIds) || sapLineIds.length === 0) {
     return res.status(400).json({ error: 'Missing required data' });
   }
-  const jobId = crypto.randomUUID();
-  
-
   const sf = applinkSDK.parseRequest(req.headers, req.body, null);
   const dataApi = sf.context.org.dataApi;
   const respql = await generateQuoteLines({ dataApi, quoteId, sapLineIds });
   console.log('@@@respql',respql);
-   return res.status(503).json({
+   return res.status(200).json({
     message: 'Quote lines created successfully',
     recordsProcessed: respql
   });
@@ -196,16 +190,11 @@ async function generateQuoteLines({ dataApi, quoteId, sapLineIds }) {
 }
 
 
-
 function chunk(arr, size) { const out = []; for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size)); return out; }
 async function withTimeout(promise, ms) {
   const t = new Promise((_, reject) => setTimeout(() => reject(new Error(`Timed out after ${ms}ms`)), ms));
   return Promise.race([promise, t]);
 }
-
-
-
-
 
 function getAdjustedStartDate(dateStr) {
   const date = new Date(dateStr);
