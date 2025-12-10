@@ -53,12 +53,21 @@ app.post('/api/generatequotelines', async (req, res) => {
 
   const sf = applinkSDK.parseRequest(req.headers, req.body, null);
   const dataApi = sf.context.org.dataApi;
-  //try {
-   const respql = await generateQuoteLines({ dataApi, quoteId, sapLineIds });
-   res.status(200).json({  message: 'Quote lines created',recordsProcessed: respql});
-  //} catch (e) {
-  //  console.error('generatequotelines failed (bg)', e);
- // }
+  
+try {
+  const respql = await generateQuoteLines({ dataApi, quoteId, sapLineIds });
+  return res.status(200).json({
+    message: 'Quote lines created successfully',
+    recordsProcessed: respql,
+  });
+} catch (err) {
+  console.error('Error generating quote lines:', err);
+  return res.status(503).json({
+    error: 'Internal Server Error',
+    details: err.message || String(err),
+  });
+}
+
 });
 
 async function generateQuoteLines({ dataApi, quoteId, sapLineIds }) {
