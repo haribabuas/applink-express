@@ -49,7 +49,7 @@ app.post('/api/generatequotelines', async (req, res) => {
     return res.status(400).json({ error: 'Missing required data' });
   }
   const jobId = crypto.randomUUID();
-  res.status(202).json({  message: 'Quote lines created'});
+  res.status(200).json({  message: 'Quote lines created'});
 
   const sf = applinkSDK.parseRequest(req.headers, req.body, null);
   const dataApi = sf.context.org.dataApi;
