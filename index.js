@@ -42,10 +42,6 @@ function chunkArray(array, size) {
 
 //const crypto = require('crypto');
 
-
-// Consider increasing JSON body limit so clients can POST large arrays safely
-// app.use(express.json({ limit: '2mb' })); // do this once at app setup
-
 app.post('/api/generatequotelines', async (req, res, next) => {
   try {
     const { quoteId, sapLineIds } = req.body;
@@ -56,8 +52,7 @@ app.post('/api/generatequotelines', async (req, res, next) => {
     const sf = applinkSDK.parseRequest(req.headers, req.body, null);
     const dataApi = sf.context.org.dataApi;
 
-    // --- IMPORTANT: chunk IDs first to avoid building an oversized SOQL/URL ---
-    const MAX_IDS_PER_QUERY = 75; // conservative to keep URI ~< 2KB after encoding
+    const MAX_IDS_PER_QUERY = 75; 
     const chunk = (arr, size) => {
       const out = [];
       for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
@@ -67,10 +62,8 @@ app.post('/api/generatequotelines', async (req, res, next) => {
 
     const allRecords = [];
     for (const [cIdx, ids] of idChunks.entries()) {
-      // Sanitize single quotes in IDs (defensive)
       const idsString = ids.map(id => `'${String(id).replace(/'/g, "''")}'`).join(',');
 
-      // Keep SELECT identical; only change WHERE to per-chunk IN (...)
       const query = `SELECT Id, License_Type__c, Quantity__c, End_Date_Consolidated__c, O2O_Attribute_Discount__c,
                      CPQ_Product__c, Install__c, Maint_Tier_Level__c, SAP_LI_Equipment_Numbers__c, CPQ_Product__r.Global__c,
                      Install__r.Price_List_Type__c, CPQ_Product__r.Access_Range__c, SAP_SYNC_ID__c, Prior_Quantity__c, ACV_12_Mth__c,
@@ -78,14 +71,12 @@ app.post('/api/generatequotelines', async (req, res, next) => {
                      FROM SAP_Install_Line_Item__c
                      WHERE Id IN (${idsString})`;
 
-      // Each query now keeps the URI short enough to avoid 414
       const sapLineQueries = await dataApi.query(query);
       const records = sapLineQueries?.records ?? [];
       console.log(`@@@query chunk ${cIdx + 1}/${idChunks.length} => ${records.length} records`);
       allRecords.push(...records);
     }
 
-    // DML batching – small commits to avoid long-running transactions
     const MAX_PER_COMMIT = 50;
     const recordBatches = chunk(allRecords, MAX_PER_COMMIT);
 
@@ -114,7 +105,6 @@ app.post('/api/generatequotelines', async (req, res, next) => {
             ? sl.SAP_LI_Equipment_Numbers__c.trim()
             : (sl.SAP_SYNC_ID__c?.trim() ? sl.SAP_SYNC_ID__c.trim() : '');
 
-        // FIX: must be let (we reassign below)
         let globalPricing = false;
         if (sl?.CPQ_Product__r?.Global__c === 'Yes' &&
             (sl?.Install__r?.Price_List_Type__c === 'GE' || sl?.Install__r?.Price_List_Type__c === 'GU')) {
