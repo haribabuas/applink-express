@@ -54,6 +54,7 @@ app.post('/api/generatequotelines', async (req, res) => {
   const sf = applinkSDK.parseRequest(req.headers, req.body, null);
   const dataApi = sf.context.org.dataApi;
   const respql = await generateQuoteLines({ dataApi, quoteId, sapLineIds });
+  console.log('@@@respql',respql);
    return res.status(503).json({
     message: 'Quote lines created successfully',
     recordsProcessed: respql
