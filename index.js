@@ -141,8 +141,18 @@ app.post('/api/generatequotelines', async (req, res, next) => {
         });
       }
 
-      const response = await dataApi.commitUnitOfWork(uow);
-      console.log(`@@@commit OK for batch ${batchIdx + 1}`);
+      try {
+        const response = await dataApi.commitUnitOfWork(uow);
+        console.log(`@@@commit OK for batch ${batchIdx + 1}`);
+      } catch (err) {
+        console.error(`@@@commit FAILED for batch ${batchIdx + 1}`, err);
+
+        await logFailedBatchAsJson({
+          quoteId,
+          failedRecords: batch,
+          err
+        });
+      }
     }
 
     return res.status(200).json({ message: 'Quote lines created', recordsProcessed: allRecords.length });
@@ -152,6 +162,29 @@ app.post('/api/generatequotelines', async (req, res, next) => {
   }
 });
 
+
+async function logFailedBatchAsJson({ quoteId, failedRecords, err}) {
+  const errorMessage = String(err?.message || err || 'Unknown error');
+  const errorCode = errorMessage.includes('UNABLE_TO_LOCK_ROW') ? 'UNABLE_TO_LOCK_ROW' : 'ERROR';
+  const failedIds = failedRecords.map(r => r?.fields?.Id).filter(Boolean);
+
+  const uow = dataApi.newUnitOfWork();
+  uow.registerCreate({
+    type: 'ErrorLog__c',
+    fields: {
+      ProcessStatus__c: 'Failed',
+      Sfdc_Error_Code__c: errorCode,
+      ErrorDescription__c: errorMessage,
+      QuoteIdRevision__c: quoteId,
+      Json_Payload__c: JSON.stringify({
+        sapLineIds: failedIds,
+        batchSize: failedRecords.length
+      }),
+    },
+  });
+
+  await dataApi.commitUnitOfWork(uow);
+}
 
 
 function chunk(arr, size) { const out = []; for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size)); return out; }
