@@ -52,7 +52,7 @@ app.post('/api/generatequotelines', async (req, res, next) => {
     const sf = applinkSDK.parseRequest(req.headers, req.body, null);
     const dataApi = sf.context.org.dataApi;
 
-    const MAX_IDS_PER_QUERY = 200; 
+    const MAX_IDS_PER_QUERY = 500; 
     const chunk = (arr, size) => {
       const out = [];
       for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
@@ -77,7 +77,7 @@ app.post('/api/generatequotelines', async (req, res, next) => {
       allRecords.push(...records);
     }
 
-    const MAX_PER_COMMIT = 200;
+    const MAX_PER_COMMIT = 500;
     const recordBatches = chunk(allRecords, MAX_PER_COMMIT);
 
     for (const [batchIdx, batch] of recordBatches.entries()) {
