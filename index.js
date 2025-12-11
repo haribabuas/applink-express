@@ -77,7 +77,7 @@ app.post('/api/generatequotelines', async (req, res, next) => {
       allRecords.push(...records);
     }
 
-    const MAX_PER_COMMIT = 20;
+    const MAX_PER_COMMIT = 200;
     const recordBatches = chunk(allRecords, MAX_PER_COMMIT);
 
     for (const [batchIdx, batch] of recordBatches.entries()) {
