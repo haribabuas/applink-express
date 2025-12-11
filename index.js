@@ -70,8 +70,8 @@ app.post('/api/generatequotelines', async (req, res) => {
 });
 
 async function generateQuoteLines({ dataApi, quoteId, sapLineIds }) {
-  const MAX_IDS_PER_QUERY = 75;
-  const MAX_PER_COMMIT = 50;
+  const MAX_IDS_PER_QUERY = 200;
+  const MAX_PER_COMMIT = 200;
   const QUERY_CONCURRENCY = 4;  
   const COMMIT_CONCURRENCY = 3; 
 
@@ -109,7 +109,7 @@ async function generateQuoteLines({ dataApi, quoteId, sapLineIds }) {
   const allRecords = await runLimited(queries, QUERY_CONCURRENCY, async (q, qIdx) => {
     const resp = await dataApi.query(q);
     const recs = resp?.records ?? [];
-    console.log(`@@@query chunk ${qIdx + 1}/${queries.length} => ${recs.length} records`);
+    //console.log(`@@@query chunk ${qIdx + 1}/${queries.length} => ${recs.length} records`);
     return recs;
   });
 
@@ -173,7 +173,7 @@ async function generateQuoteLines({ dataApi, quoteId, sapLineIds }) {
   const batches = chunk(quoteLineInputs, MAX_PER_COMMIT);
 
   const commitResults = await runLimited(batches, COMMIT_CONCURRENCY, async (batch, bIdx) => {
-    console.log(`@@@processing batch ${bIdx + 1}/${batches.length} (size=${batch.length})`);
+    //console.log(`@@@processing batch ${bIdx + 1}/${batches.length} (size=${batch.length})`);
     const uow = dataApi.newUnitOfWork({
     });
 
