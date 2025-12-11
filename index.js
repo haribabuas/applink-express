@@ -148,6 +148,7 @@ app.post('/api/generatequotelines', async (req, res, next) => {
         console.error(`@@@commit FAILED for batch ${batchIdx + 1}`, err);
 
         await logFailedBatchAsJson({
+          dataApi,  
           quoteId,
           failedRecords: batch,
           err
@@ -163,7 +164,7 @@ app.post('/api/generatequotelines', async (req, res, next) => {
 });
 
 
-async function logFailedBatchAsJson({ quoteId, failedRecords, err}) {
+async function logFailedBatchAsJson({dataApi, quoteId, failedRecords, err}) {
   const errorMessage = String(err?.message || err || 'Unknown error');
   const errorCode = errorMessage.includes('UNABLE_TO_LOCK_ROW') ? 'UNABLE_TO_LOCK_ROW' : 'ERROR';
   const failedIds = failedRecords.map(r => r?.fields?.Id).filter(Boolean);
