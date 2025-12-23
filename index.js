@@ -53,13 +53,12 @@ app.post('/api/generatequotelines', async (req, res, next) => {
     const sf = applinkSDK.parseRequest(req.headers, req.body, null);
     const dataApi = sf.context.org.dataApi;
 
-    // ---------- Helpers (Apex parity) ----------
+  
     const roundHalfUp = (value, decimals = 2) => {
       if (value == null || isNaN(Number(value))) return 0;
       const sign = value < 0 ? -1 : 1;
       const abs = Math.abs(Number(value));
       const factor = Math.pow(10, decimals);
-      // add epsilon to reduce floating error (e.g., 1.005)
       return sign * (Math.round((abs + Number.EPSILON) * factor) / factor);
     };
 
@@ -95,7 +94,6 @@ app.post('/api/generatequotelines', async (req, res, next) => {
     const idChunks = chunk(sapLineIds, MAX_IDS_PER_QUERY);
     const allRecords = [];
 
-    // ---------- Fetch SAP lines (include fields used by Apex logic) ----------
     for (const [cIdx, ids] of idChunks.entries()) {
       const idsString = ids.map(id => `'${String(id).replace(/'/g, "''")}'`).join(',');
 
@@ -289,7 +287,13 @@ app.post('/api/generatequotelines', async (req, res, next) => {
         console.log(`@@@commit OK for batch ${batchIdx + 1}`);
       } catch (err) {
         console.error(`@@@commit FAILED for batch ${batchIdx + 1}`, err);
-        // collect failed records context here for diagnostics
+        // collect failed records
+        await logFailedBatchAsJson({
+          dataApi,  
+          quoteId,
+          failedRecords: batch,
+          err
+        });
       }
     }
 
