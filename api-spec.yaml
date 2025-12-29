@@ -4,53 +4,51 @@ info:
   version: v0
 components:
   schemas:
-    QuoteLineGenerationRequest:
+    OrderLineGenerationRequest:
       type: object
       required:
-        - quoteId
-      description: Request to generate a quote, includes the quote ID
+        - orderId
+      description: Request to generate a Order, includes the Order ID
       properties:
+        orderId:
+          type: string
+          description: A record Id for the Order
         quoteId:
           type: string
-          description: A record Id for the Quote
-        sapLineIds:
-          type: array
           description: A list of record Ids for the Lines
-          items:
-            type: string
-    QuoteLineGenerationResponse:
+    OrderLineGenerationResponse:
       type: object
-      description: Response includes the record Id of the generated quote.
+      description: Response includes the record Id of the generated Order.
       properties:
         message:
           type: string
-          description: A message for the generated quote
+          description: A message for the generated Order
 paths:
-  /api/generatequotelines:
+  /api/generateOrderlines:
     post:
-      operationId: generateQuoteLines
-      summary: Generate a Quote for a given Opportunity
+      operationId: generateOrderLines
+      summary: Generate a OrderItems for a given Order and Quote
       tags:
-        - Quote Lines
-      description: Create Quote lines.
+        - Order Lines
+      description: Create Order lines.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/QuoteLineGenerationRequest"
+              $ref: "#/components/schemas/OrderLineGenerationRequest"
       x-sfdc:
         heroku:
           authorization:
-            connectedApp: HerokuGenerateQuoteLineApp
-            permissionSet: HerokuGenerateQuoteLinePS
+            connectedApp: HerokuGenerateOrderItemApp
+            permissionSet: HerokuGenerateOrderItemPS
       responses:
         "200":
           description: OK
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/QuoteLineGenerationResponse"
+                $ref: "#/components/schemas/OrderLineGenerationResponse"
         "401":
           description: Unauthorized
           content:
