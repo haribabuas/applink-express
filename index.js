@@ -19,7 +19,7 @@ function chunkArray(array, size) {
 //const crypto = require('crypto');
 
 
-app.post('/api/generatequotelines', async (req, res, next) => {
+app.post('/api/generateOrderlines', async (req, res, next) => {
   try {
     const { quoteId, sapLineIds } = req.body;
     if (!quoteId || !Array.isArray(sapLineIds) || sapLineIds.length === 0) {
