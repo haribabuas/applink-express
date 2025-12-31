@@ -101,6 +101,9 @@ app.post('/api/generateOrderlines', async (req, res) => {
     const fv = (record, fieldApiName) => record?.fields?.[fieldApiName]?.value;
 
     const buildOrderItemFields = (line) => {
+      const rec = line?.fields;
+      console.log('&&&',rec);
+      const productId        = rec.SBQQ__Product__c;
       const qty = fv(line, 'SBQQ__Quantity__c');
       const netPrice = fv(line, 'SBQQ__NetPrice__c');
       const effStart = fv(line, 'SBQQ__EffectiveStartDate__c'); // usually ISO string
@@ -108,7 +111,7 @@ app.post('/api/generateOrderlines', async (req, res) => {
 
       return {
         OrderId: orderId,
-        Product2Id: fv(line, 'SBQQ__Product__c'),
+        Product2Id: productId,
         Description: 'Bridge',
         PricebookEntryId: fv(line, 'SBQQ__PricebookEntryId__c'),
 
