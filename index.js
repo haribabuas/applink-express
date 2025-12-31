@@ -26,7 +26,7 @@ app.post('/api/generateOrderlines', async (req, res, next) => {
     console.log('@@@',quoteId);
     const sf = applinkSDK.parseRequest(req.headers, req.body, null);
     const dataApi = sf.context.org.dataApi;
-
+    console.log('@@@dataApi',dataApi);
     return res.status(200).json({ message: 'Quote lines created'});
   } catch (err) {
     console.error('generatequotelines failed', err);
