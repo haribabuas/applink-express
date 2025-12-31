@@ -148,7 +148,7 @@ app.post('/api/generateOrderlines', async (req, res) => {
 
       for (const line of quoteLines) {
         const fields = buildOrderItemFields(line);
-
+        console.log('@@@fields',fields);
         // Use the object-style signature you requested
         uow.registerCreate({
           type: 'OrderItem',
@@ -164,6 +164,7 @@ app.post('/api/generateOrderlines', async (req, res) => {
       results = [];
       for (const line of quoteLines) {
         const fields = buildOrderItemFields(line);
+        console.log('@@@fieldsElse',fields);
         const r = await dataApi.createRecord('OrderItem', fields);
         results.push(r);
       }
