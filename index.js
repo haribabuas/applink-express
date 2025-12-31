@@ -98,10 +98,8 @@ app.post('/api/generateOrderlines', async (req, res) => {
       });
     }
 
-    // Helper to read values from dataApi query result (records[].fields[api].value)
     const fv = (record, fieldApiName) => record?.fields?.[fieldApiName]?.value;
 
-    // Build fields for OrderItem as per Apex mapping
     const buildOrderItemFields = (line) => {
       const qty = fv(line, 'SBQQ__Quantity__c');
       const netPrice = fv(line, 'SBQQ__NetPrice__c');
