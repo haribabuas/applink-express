@@ -157,7 +157,7 @@ app.post('/api/generateOrderlines', async (req, res) => {
           fields
         });
       }
-
+      console.log('@@@uow',uow);
       results = await dataApi.commitUnitOfWork(uow);
       createdCount = quoteLines.length;
 
