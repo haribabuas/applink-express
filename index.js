@@ -35,9 +35,11 @@ function chunkArray(array, size) {
 });*/
 
 
+
 app.post('/api/generateOrderlines', async (req, res) => {
   try {
     const { orderId, quoteId } = req.body;
+
     if (!orderId || !quoteId) {
       return res.status(400).json({
         error: 'Missing required input',
@@ -46,7 +48,14 @@ app.post('/api/generateOrderlines', async (req, res) => {
     }
 
     const sf = applinkSDK.parseRequest(req.headers, req.body, null);
-    const dataApi = sf.context.org.dataApi;
+    const dataApi = sf.context.org?.dataApi;
+    if (!dataApi) {
+      return res.status(500).json({
+        error: 'Salesforce dataApi unavailable',
+        details: 'Ensure applinkSDK.parseRequest provides sf.context.org.dataApi'
+      });
+    }
+
     const safeQuoteId = String(quoteId).replace(/'/g, "\\'");
 
     const soql = `
@@ -80,7 +89,7 @@ app.post('/api/generateOrderlines', async (req, res) => {
     `;
 
     const qResult = await dataApi.query(soql);
-    const quoteLines = qResult?.records || [];
+    const quoteLines = Array.isArray(qResult?.records) ? qResult.records : [];
 
     if (!quoteLines.length) {
       return res.status(404).json({
@@ -89,55 +98,74 @@ app.post('/api/generateOrderlines', async (req, res) => {
       });
     }
 
-    const pruneUndefined = (obj) =>
-      Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined && v !== null));
-    const makeOrderItemFields = (line) => pruneUndefined({
-      OrderId: orderId,
-      Product2Id: line.SBQQ__Product__c,
-      Description: 'Bridge',
-      PricebookEntryId: line.SBQQ__PricebookEntryId__c,
-      Quantity: line.SBQQ__Quantity__c,
-      SBQQ__OrderedQuantity__c: line.SBQQ__Quantity__c,
-      SBQQ__QuotedQuantity__c: line.SBQQ__Quantity__c,
-      UnitPrice: line.SBQQ__NetPrice__c,
-      SBQQ__BillingFrequency__c: line.SBQQ__BillingFrequency__c,
-      SBQQ__BillingType__c: line.SBQQ__BillingType__c,
-      SBQQ__BlockPrice__c: line.SBQQ__BlockPrice__c,
-      SBQQ__ChargeType__c: line.SBQQ__ChargeType__c,
-      SBQQ__DefaultSubscriptionTerm__c: line.SBQQ__DefaultSubscriptionTerm__c,
-      SBQQ__DiscountSchedule__c: line.SBQQ__DiscountSchedule__c,
-      SBQQ__PricingMethod__c: line.SBQQ__PricingMethod__c,
-      SBQQ__ProrateMultiplier__c: line.SBQQ__ProrateMultiplier__c,
-      SBQQ__RequiredBy__c: line.SBQQ__RequiredBy__c,
-      SBQQ__SegmentIndex__c: line.SBQQ__SegmentIndex__c,
-      SBQQ__SegmentKey__c: line.SBQQ__SegmentKey__c,
-      SBQQ__TaxCode__c: line.SBQQ__TaxCode__c,
-      SBQQ__TermDiscountSchedule__c: line.SBQQ__TermDiscountSchedule__c,
-      SBQQ__UnproratedNetPrice__c: line.SBQQ__UnproratedNetPrice__c,
-      SBQQ__UpgradedSubscription__c: line.SBQQ__UpgradedSubscription__c,
-      ServiceDate: line.SBQQ__EffectiveStartDate__c,
-      EndDate: line.SBQQ__EffectiveEndDate__c,
-      SBQQ__QuoteLine__c: line.Id,
-      // CurrencyIsoCode: line.CurrencyIsoCode,
-    });
+    // Helper to read values from dataApi query result (records[].fields[api].value)
+    const fv = (record, fieldApiName) => record?.fields?.[fieldApiName]?.value;
 
-    let results, createdCount;
+    // Build fields for OrderItem as per Apex mapping
+    const buildOrderItemFields = (line) => {
+      const qty = fv(line, 'SBQQ__Quantity__c');
+      const netPrice = fv(line, 'SBQQ__NetPrice__c');
+      const effStart = fv(line, 'SBQQ__EffectiveStartDate__c'); // usually ISO string
+      const effEnd = fv(line, 'SBQQ__EffectiveEndDate__c');
+
+      return {
+        OrderId: orderId,
+        Product2Id: fv(line, 'SBQQ__Product__c'),
+        Description: 'Bridge',
+        PricebookEntryId: fv(line, 'SBQQ__PricebookEntryId__c'),
+
+        Quantity: qty != null ? Number(qty) : undefined,
+        SBQQ__OrderedQuantity__c: qty != null ? Number(qty) : undefined,
+        SBQQ__QuotedQuantity__c: qty != null ? Number(qty) : undefined,
+        UnitPrice: netPrice != null ? Number(netPrice) : undefined,
+
+        SBQQ__BillingFrequency__c: fv(line, 'SBQQ__BillingFrequency__c'),
+        SBQQ__BillingType__c: fv(line, 'SBQQ__BillingType__c'),
+        SBQQ__BlockPrice__c: fv(line, 'SBQQ__BlockPrice__c'),
+        SBQQ__ChargeType__c: fv(line, 'SBQQ__ChargeType__c'),
+        SBQQ__DefaultSubscriptionTerm__c: fv(line, 'SBQQ__DefaultSubscriptionTerm__c'),
+        SBQQ__DiscountSchedule__c: fv(line, 'SBQQ__DiscountSchedule__c'),
+        SBQQ__PricingMethod__c: fv(line, 'SBQQ__PricingMethod__c'),
+        SBQQ__ProrateMultiplier__c: fv(line, 'SBQQ__ProrateMultiplier__c'),
+        SBQQ__RequiredBy__c: fv(line, 'SBQQ__RequiredBy__c'),
+        SBQQ__SegmentIndex__c: fv(line, 'SBQQ__SegmentIndex__c'),
+        SBQQ__SegmentKey__c: fv(line, 'SBQQ__SegmentKey__c'),
+        SBQQ__TaxCode__c: fv(line, 'SBQQ__TaxCode__c'),
+        SBQQ__TermDiscountSchedule__c: fv(line, 'SBQQ__TermDiscountSchedule__c'),
+        SBQQ__UnproratedNetPrice__c: fv(line, 'SBQQ__UnproratedNetPrice__c'),
+        SBQQ__UpgradedSubscription__c: fv(line, 'SBQQ__UpgradedSubscription__c'),
+
+        ServiceDate: effStart || undefined, // ISO string OK
+        EndDate: effEnd || undefined,
+
+        SBQQ__QuoteLine__c: fv(line, 'Id'),
+      };
+    };
+
+    let results;
+    let createdCount;
+
     if (typeof dataApi.newUnitOfWork === 'function' && typeof dataApi.commitUnitOfWork === 'function') {
       const uow = dataApi.newUnitOfWork();
 
       for (const line of quoteLines) {
-        const fields = makeOrderItemFields(line);
-        uow.registerCreate('OrderItem', fields);
+        const fields = buildOrderItemFields(line);
+
+        // Use the object-style signature you requested
+        uow.registerCreate({
+          type: 'OrderItem',
+          fields
+        });
       }
 
       results = await dataApi.commitUnitOfWork(uow);
       createdCount = quoteLines.length;
 
     } else {
-      // Fallback: create records one-by-one (non-transactional)
+      // Fallback to per-record create (non-transactional)
       results = [];
       for (const line of quoteLines) {
-        const fields = makeOrderItemFields(line);
+        const fields = buildOrderItemFields(line);
         const r = await dataApi.createRecord('OrderItem', fields);
         results.push(r);
       }
@@ -160,6 +188,7 @@ app.post('/api/generateOrderlines', async (req, res) => {
     });
   }
 });
+
 
     
 
