@@ -103,43 +103,38 @@ app.post('/api/generateOrderlines', async (req, res) => {
     const buildOrderItemFields = (line) => {
       const rec = line?.fields;
       console.log('&&&',rec);
-      const productId        = rec.SBQQ__Product__c;
-      const qty = fv(line, 'SBQQ__Quantity__c');
-      const netPrice = fv(line, 'SBQQ__NetPrice__c');
-      const effStart = fv(line, 'SBQQ__EffectiveStartDate__c'); // usually ISO string
-      const effEnd = fv(line, 'SBQQ__EffectiveEndDate__c');
-
+      const productId = rec.SBQQ__Product__c;
       return {
         OrderId: orderId,
         Product2Id: productId,
         Description: 'Bridge',
-        PricebookEntryId: fv(line, 'SBQQ__PricebookEntryId__c'),
+        PricebookEntryId: rec.SBQQ__PricebookEntryId__c,
 
-        Quantity: qty != null ? Number(qty) : undefined,
-        SBQQ__OrderedQuantity__c: qty != null ? Number(qty) : undefined,
-        SBQQ__QuotedQuantity__c: qty != null ? Number(qty) : undefined,
-        UnitPrice: netPrice != null ? Number(netPrice) : undefined,
+        Quantity: rec.SBQQ__Quantity__c,
+        SBQQ__OrderedQuantity__c: rec.SBQQ__Quantity__c,
+        SBQQ__QuotedQuantity__c: rec.SBQQ__Quantity__c,
+        UnitPrice: rec.SBQQ__NetPrice__c,
 
-        SBQQ__BillingFrequency__c: fv(line, 'SBQQ__BillingFrequency__c'),
-        SBQQ__BillingType__c: fv(line, 'SBQQ__BillingType__c'),
-        SBQQ__BlockPrice__c: fv(line, 'SBQQ__BlockPrice__c'),
-        SBQQ__ChargeType__c: fv(line, 'SBQQ__ChargeType__c'),
-        SBQQ__DefaultSubscriptionTerm__c: fv(line, 'SBQQ__DefaultSubscriptionTerm__c'),
-        SBQQ__DiscountSchedule__c: fv(line, 'SBQQ__DiscountSchedule__c'),
-        SBQQ__PricingMethod__c: fv(line, 'SBQQ__PricingMethod__c'),
-        SBQQ__ProrateMultiplier__c: fv(line, 'SBQQ__ProrateMultiplier__c'),
-        SBQQ__RequiredBy__c: fv(line, 'SBQQ__RequiredBy__c'),
-        SBQQ__SegmentIndex__c: fv(line, 'SBQQ__SegmentIndex__c'),
-        SBQQ__SegmentKey__c: fv(line, 'SBQQ__SegmentKey__c'),
-        SBQQ__TaxCode__c: fv(line, 'SBQQ__TaxCode__c'),
-        SBQQ__TermDiscountSchedule__c: fv(line, 'SBQQ__TermDiscountSchedule__c'),
-        SBQQ__UnproratedNetPrice__c: fv(line, 'SBQQ__UnproratedNetPrice__c'),
-        SBQQ__UpgradedSubscription__c: fv(line, 'SBQQ__UpgradedSubscription__c'),
+        SBQQ__BillingFrequency__c: rec.SBQQ__BillingFrequency__c,
+        SBQQ__BillingType__c: rec.SBQQ__BillingType__c,
+        SBQQ__BlockPrice__c: rec.SBQQ__BlockPrice__c,
+        SBQQ__ChargeType__c: rec.SBQQ__ChargeType__c,
+        SBQQ__DefaultSubscriptionTerm__c: rec.SBQQ__DefaultSubscriptionTerm__c,
+        SBQQ__DiscountSchedule__c: rec.SBQQ__DiscountSchedule__c,
+        SBQQ__PricingMethod__c: rec.SBQQ__PricingMethod__c,
+        SBQQ__ProrateMultiplier__c: rec.SBQQ__ProrateMultiplier__c,
+        SBQQ__RequiredBy__c: rec.SBQQ__RequiredBy__c,
+        SBQQ__SegmentIndex__c: rec.SBQQ__SegmentIndex__c,
+        SBQQ__SegmentKey__c: rec.SBQQ__SegmentKey__c,
+        SBQQ__TaxCode__c: rec.SBQQ__TaxCode__c,
+        SBQQ__TermDiscountSchedule__c: rec.SBQQ__TermDiscountSchedule__c,
+        SBQQ__UnproratedNetPrice__c: rec.SBQQ__UnproratedNetPrice__c,
+        SBQQ__UpgradedSubscription__c: rec.SBQQ__UpgradedSubscription__c,
 
-        ServiceDate: effStart || undefined, // ISO string OK
-        EndDate: effEnd || undefined,
+        ServiceDate: rec.SBQQ__EffectiveStartDate__c,
+        EndDate: rec.SBQQ__EffectiveEndDate__c,
 
-        SBQQ__QuoteLine__c: fv(line, 'Id'),
+        SBQQ__QuoteLine__c: rec.Id,
       };
     };
 
