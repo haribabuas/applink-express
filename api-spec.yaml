@@ -39,8 +39,8 @@ paths:
       x-sfdc:
         heroku:
           authorization:
-            connectedApp: HerokuGenerateContractItemApp
-            permissionSet: HerokuGenerateContractItemPS
+            connectedApp: HerokuGenerateContractLineApp
+            permissionSet: HerokuGenerateContractLinePS
       responses:
         "200":
           description: OK
