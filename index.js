@@ -39,23 +39,8 @@ function chunkArray(array, size) {
 app.post('/api/generateOrderlines', async (req, res) => {
   try {
     const { orderId, quoteId } = req.body;
-
-    if (!orderId || !quoteId) {
-      return res.status(400).json({
-        error: 'Missing required input',
-        details: 'Please provide both orderId and quoteId in the request body.'
-      });
-    }
-
     const sf = applinkSDK.parseRequest(req.headers, req.body, null);
     const dataApi = sf.context.org?.dataApi;
-    if (!dataApi) {
-      return res.status(500).json({
-        error: 'Salesforce dataApi unavailable',
-        details: 'Ensure applinkSDK.parseRequest provides sf.context.org.dataApi'
-      });
-    }
-
     const safeQuoteId = String(quoteId).replace(/'/g, "\\'");
 
     const soql = `
@@ -147,7 +132,6 @@ app.post('/api/generateOrderlines', async (req, res) => {
       for (const line of quoteLines) {
         const fields = buildOrderItemFields(line);
         console.log('@@@fields',fields);
-        // Use the object-style signature you requested
         uow.registerCreate({
           type: 'OrderItem',
           fields
@@ -157,18 +141,7 @@ app.post('/api/generateOrderlines', async (req, res) => {
       results = await dataApi.commitUnitOfWork(uow);
       createdCount = quoteLines.length;
 
-    } else {
-      // Fallback to per-record create (non-transactional)
-      results = [];
-      for (const line of quoteLines) {
-        const fields = buildOrderItemFields(line);
-        console.log('@@@fieldsElse',fields);
-        const r = await dataApi.createRecord('OrderItem', fields);
-        results.push(r);
-      }
-      createdCount = results.length;
-    }
-
+    } 
     return res.status(200).json({
       message: 'Quote lines converted to order items',
       quoteId,
