@@ -70,7 +70,7 @@ app.post('/api/generateOrderlines', async (req, res) => {
         SBQQ__EffectiveEndDate__c,
         SBQQ__NetPrice__c
       FROM SBQQ__QuoteLine__c
-      WHERE SBQQ__Quote__c = '${safeQuoteId}'
+      WHERE SBQQ__Quote__c = '${safeQuoteId}' limit 1
     `;
 
     const qResult = await dataApi.query(soql);
@@ -83,7 +83,6 @@ app.post('/api/generateOrderlines', async (req, res) => {
       });
     }
 
-    const fv = (record, fieldApiName) => record?.fields?.[fieldApiName]?.value;
 
     const buildOrderItemFields = (line) => {
       const rec = line?.fields;
