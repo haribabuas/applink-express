@@ -36,88 +36,75 @@ function chunkArray(array, size) {
 
 
 
-app.post('/api/generateOrderlines', async (req, res) => {
+app.post('/api/generateContractlines', async (req, res) => {
   try {
-    const { orderId, quoteId } = req.body;
+    const { orderIds} = req.body;
     const sf = applinkSDK.parseRequest(req.headers, req.body, null);
     const dataApi = sf.context.org?.dataApi;
-    const safeQuoteId = String(quoteId).replace(/'/g, "\\'");
 
     const soql = `
-      SELECT
-        Id,
-        SBQQ__Product__c,
-        SBQQ__PricebookEntryId__c,
-        SBQQ__Quantity__c,
-        SBQQ__BillingFrequency__c,
-        SBQQ__BillingType__c,
-        SBQQ__BlockPrice__c,
-        SBQQ__ChargeType__c,
-        SBQQ__DefaultSubscriptionTerm__c,
-        SBQQ__DiscountSchedule__c,
-        SBQQ__PricingMethod__c,
-        SBQQ__ProrateMultiplier__c,
-        SBQQ__RequiredBy__c,
-        SBQQ__SegmentIndex__c,
-        SBQQ__SegmentKey__c,
-        SBQQ__SubscriptionTerm__c,
-        SBQQ__SubscriptionType__c,
-        SBQQ__TaxCode__c,
-        SBQQ__TermDiscountSchedule__c,
-        SBQQ__UnproratedNetPrice__c,
-        SBQQ__UpgradedSubscription__c,
-        SBQQ__EffectiveStartDate__c,
-        SBQQ__EffectiveEndDate__c,
-        SBQQ__NetPrice__c
-      FROM SBQQ__QuoteLine__c
-      WHERE SBQQ__Quote__c = '${safeQuoteId}'
+      SELECT Order.AccountId,Order.ContractId,
+                    Id,
+                    OrderId,
+                    Product2Id,
+                    Description,
+                    PricebookEntryId,
+                    Quantity,
+                    SBQQ__OrderedQuantity__c,
+                    SBQQ__QuotedQuantity__c,
+                    UnitPrice,
+                    SBQQ__BillingFrequency__c,
+                    SBQQ__BillingType__c,
+                    SBQQ__BlockPrice__c,
+                    SBQQ__ChargeType__c,
+                    SBQQ__DefaultSubscriptionTerm__c,
+                    SBQQ__DiscountSchedule__c,
+                    SBQQ__PricingMethod__c,
+                    SBQQ__ProrateMultiplier__c,
+                    SBQQ__RequiredBy__c,
+                    SBQQ__SegmentIndex__c,
+                    SBQQ__SegmentKey__c,
+                    SBQQ__TaxCode__c,
+                    SBQQ__TermDiscountSchedule__c,
+                    SBQQ__UnproratedNetPrice__c,
+                    SBQQ__UpgradedSubscription__c,
+                    ServiceDate,SBQQ__QuoteLine__c,
+                    EndDate
+                FROM OrderItem
+                WHERE OrderId In: '${orderIds}'
     `;
 
     const qResult = await dataApi.query(soql);
-    const quoteLines = Array.isArray(qResult?.records) ? qResult.records : [];
-    console.log('@@@quoteLines',quoteLines);
-    if (!quoteLines.length) {
-      return res.status(404).json({
-        message: 'No quote lines found for the given quoteId',
-        quoteId
-      });
-    }
+    const orderLines = Array.isArray(qResult?.records) ? qResult.records : [];
+    console.log('@@@orderLines',orderLines);
+
 
 
     const buildOrderItemFields = (line) => {
-      const rec = line?.fields;
-      console.log('&&&',rec);
-      const productId = rec.SBQQ__Product__c;
+      const item = line?.fields;
+      console.log('&&&',item);
+      const productId = item.SBQQ__Product__c;
       return {
-        OrderId: orderId,
-        Product2Id: productId,
-        Description: 'Bridge',
-        PricebookEntryId: rec.SBQQ__PricebookEntryId__c,
+        
+	  SBQQ__Contract__c:                item?.Order?.ContractId ?? null,
+    SBQQ__Product__c:                 item?.Product2Id ?? null,
+    SBQQ__Quantity__c:                item?.Quantity ?? 0,
+    SBQQ__SubscriptionStartDate__c:   item?.ServiceDate ?? null,
+    SBQQ__SubscriptionEndDate__c:     item?.EndDate ?? null,
+    SBQQ__Account__c:                 item?.Order?.AccountId ?? null,
 
-        Quantity: rec.SBQQ__Quantity__c,
-        SBQQ__OrderedQuantity__c: rec.SBQQ__Quantity__c,
-        SBQQ__QuotedQuantity__c: rec.SBQQ__Quantity__c,
-        UnitPrice: rec?.SBQQ__NetPrice__c !== undefined && rec?.SBQQ__NetPrice__c !== null? rec.SBQQ__NetPrice__c: 0,
-        SBQQ__BillingFrequency__c: rec.SBQQ__BillingFrequency__c,
-        SBQQ__BillingType__c: rec.SBQQ__BillingType__c,
-        SBQQ__BlockPrice__c: rec.SBQQ__BlockPrice__c,
-        SBQQ__ChargeType__c: rec.SBQQ__ChargeType__c,
-        SBQQ__DefaultSubscriptionTerm__c: rec.SBQQ__DefaultSubscriptionTerm__c,
-        SBQQ__DiscountSchedule__c: rec.SBQQ__DiscountSchedule__c,
-        SBQQ__PricingMethod__c: rec.SBQQ__PricingMethod__c,
-        SBQQ__ProrateMultiplier__c: rec.SBQQ__ProrateMultiplier__c,
-        SBQQ__RequiredBy__c: rec.SBQQ__RequiredBy__c,
-        SBQQ__SegmentIndex__c: rec.SBQQ__SegmentIndex__c,
-        SBQQ__SegmentKey__c: rec.SBQQ__SegmentKey__c,
-        SBQQ__TaxCode__c: rec.SBQQ__TaxCode__c,
-        SBQQ__TermDiscountSchedule__c: rec.SBQQ__TermDiscountSchedule__c,
-        SBQQ__UnproratedNetPrice__c: rec.SBQQ__UnproratedNetPrice__c,
-        SBQQ__UpgradedSubscription__c: rec.SBQQ__UpgradedSubscription__c,
+    SBQQ__BillingFrequency__c:        item?.SBQQ__BillingFrequency__c ?? null,
+    SBQQ__BillingType__c:             item?.SBQQ__BillingType__c ?? null,
+    SBQQ__ChargeType__c:              item?.SBQQ__ChargeType__c ?? null,
+    SBQQ__DiscountSchedule__c:        item?.SBQQ__DiscountSchedule__c ?? null,
+    SBQQ__SegmentIndex__c:            item?.SBQQ__SegmentIndex__c ?? null,
+    SBQQ__SegmentKey__c:              item?.SBQQ__SegmentKey__c ?? null,
+    SBQQ__TermDiscountSchedule__c:    item?.SBQQ__TermDiscountSchedule__c ?? null,
+    SBQQ__PricingMethod__c:           item?.SBQQ__PricingMethod__c ?? null,
 
-        ServiceDate: rec.SBQQ__EffectiveStartDate__c,
-        EndDate: rec.SBQQ__EffectiveEndDate__c,
+    SBQQ__OrderProduct__c:            item?.Id ?? null,
+    SBQQ__QuoteLine__c:               item?.SBQQ__QuoteLine__c ?? null,
 
-        SBQQ__QuoteLine__c: rec.Id,
       };
     };
 
@@ -127,29 +114,28 @@ app.post('/api/generateOrderlines', async (req, res) => {
     if (typeof dataApi.newUnitOfWork === 'function' && typeof dataApi.commitUnitOfWork === 'function') {
       const uow = dataApi.newUnitOfWork();
 
-      for (const line of quoteLines) {
+      for (const line of orderLines) {
         const fields = buildOrderItemFields(line);
         console.log('@@@fields',fields);
         uow.registerCreate({
-          type: 'OrderItem',
+          type: 'SBQQ__Subscription__c',
           fields
         });
       }
       console.log('@@@uow',uow);
       results = await dataApi.commitUnitOfWork(uow);
-      createdCount = quoteLines.length;
+      createdCount = orderLines.length;
 
     } 
     return res.status(200).json({
-      message: 'Quote lines converted to order items',
-      quoteId,
-      orderId,
+      message: 'Subscrptions lines are created',
+      orderIds,
       createdCount,
       results
     });
 
   } catch (err) {
-    console.error('generateOrderlines failed', err);
+    console.error('generateContractlines failed', err);
     return res.status(500).json({
       error: 'Internal error',
       details: String(err?.message || err)
