@@ -4,19 +4,18 @@ info:
   version: v0
 components:
   schemas:
-    OrderLineGenerationRequest:
+    ContractLineGenerationRequest:
       type: object
       required:
-        - orderId
+        - orderIds
       description: Request to generate a Order, includes the Order ID
       properties:
-        orderId:
-          type: string
-          description: A record Id for the Order
-        quoteId:
-          type: string
-          description: A list of record Ids for the Lines
-    OrderLineGenerationResponse:
+        orderIds:
+          type: array
+          description: A list of record Ids for the Order
+          items:
+            type: string
+    ContractLineGenerationResponse:
       type: object
       description: Response includes the record Id of the generated Order.
       properties:
@@ -24,31 +23,31 @@ components:
           type: string
           description: A message for the generated Order
 paths:
-  /api/generateOrderlines:
+  /api/generateContractlines:
     post:
-      operationId: generateOrderLines
-      summary: Generate a OrderItems for a given Order and Quote
+      operationId: generateContractLines
+      summary: Generate a ContractItems for a given Order and Quote
       tags:
-        - Order Lines
-      description: Create Order lines.
+        - Contract Lines
+      description: Create Contract lines.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/OrderLineGenerationRequest"
+              $ref: "#/components/schemas/ContractLineGenerationRequest"
       x-sfdc:
         heroku:
           authorization:
-            connectedApp: HerokuGenerateOrderItemApp
-            permissionSet: HerokuGenerateOrderItemPS
+            connectedApp: HerokuGenerateContractItemApp
+            permissionSet: HerokuGenerateContractItemPS
       responses:
         "200":
           description: OK
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/OrderLineGenerationResponse"
+                $ref: "#/components/schemas/ContractLineGenerationResponse"
         "401":
           description: Unauthorized
           content:
