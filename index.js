@@ -19,7 +19,7 @@ function chunkArray(array, size) {
 //const crypto = require('crypto');
 
 
-/*app.post('/api/generateOrderlines', async (req, res, next) => {
+app.post('/api/generateContractlines', async (req, res, next) => {
   try {
     const { orderId, quoteId } = req.body;
     
@@ -32,11 +32,11 @@ function chunkArray(array, size) {
     console.error('generatequotelines failed', err);
     return res.status(500).json({ error: 'Internal error', details: String(err?.message || err) });
   }
-});*/
+});
 
 
 
-app.post('/api/generateContractlines', async (req, res) => {
+app.post('/api/generateContractlines2', async (req, res) => {
   try {
     const { orderIds} = req.body;
     const sf = applinkSDK.parseRequest(req.headers, req.body, null);
