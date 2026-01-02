@@ -70,7 +70,7 @@ app.post('/api/generateOrderlines', async (req, res) => {
         SBQQ__EffectiveEndDate__c,
         SBQQ__NetPrice__c
       FROM SBQQ__QuoteLine__c
-      WHERE SBQQ__Quote__c = '${safeQuoteId}' limit 1
+      WHERE SBQQ__Quote__c = '${safeQuoteId}' and Id = 'aPrOv000000G3I6KAK' limit 1
     `;
 
     const qResult = await dataApi.query(soql);
