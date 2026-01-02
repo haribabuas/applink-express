@@ -97,7 +97,7 @@ app.post('/api/generateOrderlines', async (req, res) => {
         Quantity: rec.SBQQ__Quantity__c,
         SBQQ__OrderedQuantity__c: rec.SBQQ__Quantity__c,
         SBQQ__QuotedQuantity__c: rec.SBQQ__Quantity__c,
-        UnitPrice: rec.SBQQ__NetPrice__c,
+        UnitPrice: rec?.SBQQ__NetPrice__c?.value ?? 0,
 
         SBQQ__BillingFrequency__c: rec.SBQQ__BillingFrequency__c,
         SBQQ__BillingType__c: rec.SBQQ__BillingType__c,
