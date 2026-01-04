@@ -19,7 +19,7 @@ function chunkArray(array, size) {
 //const crypto = require('crypto');
 
 
-app.post('/api/generateContractlines', async (req, res, next) => {
+app.post('/api/generateContractlines2', async (req, res, next) => {
   try {
     const { orderId, quoteId } = req.body;
     
@@ -36,7 +36,7 @@ app.post('/api/generateContractlines', async (req, res, next) => {
 
 
 
-app.post('/api/generateContractlines2', async (req, res) => {
+app.post('/api/generateContractlines', async (req, res) => {
   try {
     const { orderIds} = req.body;
     const sf = applinkSDK.parseRequest(req.headers, req.body, null);
