@@ -71,7 +71,7 @@ app.post('/api/generateContractlines', async (req, res) => {
                     ServiceDate,SBQQ__QuoteLine__c,
                     EndDate
                 FROM OrderItem
-                WHERE OrderId In: '${orderIds}'
+                WHERE OrderId In (${orderIds})
     `;
 
     const qResult = await dataApi.query(soql);
