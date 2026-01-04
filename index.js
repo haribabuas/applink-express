@@ -41,6 +41,19 @@ app.post('/api/generateContractlines', async (req, res) => {
     const { orderIds} = req.body;
     const sf = applinkSDK.parseRequest(req.headers, req.body, null);
     const dataApi = sf.context.org?.dataApi;
+    
+    let ids = [];
+    if (Array.isArray(orderIds)) {
+      ids = orderIds;
+    } else if (typeof orderIds === 'string') {
+      ids = orderIds.split(',').map(s => s.trim()).filter(Boolean);
+    }
+
+    
+    ids = Array.from(new Set(ids));
+    const escape = (s) => String(s).replace(/'/g, "\\'");
+    const inList = ids.map(id => `'${escape(id)}'`).join(', ');
+
 
     const soql = `
       SELECT Order.AccountId,Order.ContractId,
@@ -71,7 +84,7 @@ app.post('/api/generateContractlines', async (req, res) => {
                     ServiceDate,SBQQ__QuoteLine__c,
                     EndDate
                 FROM OrderItem
-                WHERE OrderId In (${orderIds})
+                WHERE OrderId IN (${inList})
     `;
 
     const qResult = await dataApi.query(soql);
