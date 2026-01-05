@@ -99,12 +99,12 @@ app.post('/api/generateContractlines', async (req, res) => {
       const productId = item.SBQQ__Product__c;
       return {
         
-	  SBQQ__Contract__c:                item?.Order?.ContractId ?? null,
+	  SBQQ__Contract__c:                item?.Order?.fields?.ContractId ?? null,
     SBQQ__Product__c:                 item?.Product2Id ?? null,
     SBQQ__Quantity__c:                item?.Quantity ?? 0,
     SBQQ__SubscriptionStartDate__c:   item?.ServiceDate ?? null,
     SBQQ__SubscriptionEndDate__c:     item?.EndDate ?? null,
-    SBQQ__Account__c:                 item?.Order?.AccountId ?? null,
+    SBQQ__Account__c:                 item?.Order?.fields?.AccountId ?? null,
 
     SBQQ__BillingFrequency__c:        item?.SBQQ__BillingFrequency__c ?? null,
     SBQQ__BillingType__c:             item?.SBQQ__BillingType__c ?? null,
