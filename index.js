@@ -34,8 +34,6 @@ function chunkArray(array, size) {
   }
 });*/
 
-
-
 app.post('/api/generateOrderlines', async (req, res) => {
   try {
     const { orderId, quoteId } = req.body;
@@ -75,7 +73,6 @@ app.post('/api/generateOrderlines', async (req, res) => {
 
     const qResult = await dataApi.query(soql);
     const quoteLines = Array.isArray(qResult?.records) ? qResult.records : [];
-    console.log('@@@quoteLines',quoteLines.length);
     if (!quoteLines.length) {
       return res.status(404).json({
         message: 'No quote lines found for the given quoteId',
@@ -83,10 +80,11 @@ app.post('/api/generateOrderlines', async (req, res) => {
       });
     }
 
-
+    // ------------------------------
+    // Existing logic unchanged
+    // ------------------------------
     const buildOrderItemFields = (line) => {
       const rec = line?.fields;
-      //console.log('&&&',rec);
       const productId = rec.SBQQ__Product__c;
       return {
         OrderId: orderId,
@@ -94,25 +92,28 @@ app.post('/api/generateOrderlines', async (req, res) => {
         Description: 'Bridge',
         PricebookEntryId: rec.SBQQ__PricebookEntryId__c,
 
-        Quantity: 0,
-        //SBQQ__OrderedQuantity__c: rec.SBQQ__Quantity__c,
-       // SBQQ__QuotedQuantity__c: rec.SBQQ__Quantity__c,
-        UnitPrice: 0,
-        //SBQQ__BillingFrequency__c: rec.SBQQ__BillingFrequency__c,
-       // SBQQ__BillingType__c: rec.SBQQ__BillingType__c,
-       // SBQQ__BlockPrice__c: rec.SBQQ__BlockPrice__c,
-       // SBQQ__ChargeType__c: rec.SBQQ__ChargeType__c,
-       // SBQQ__DefaultSubscriptionTerm__c: rec.SBQQ__DefaultSubscriptionTerm__c,
-       // SBQQ__DiscountSchedule__c: rec.SBQQ__DiscountSchedule__c,
-      //  SBQQ__PricingMethod__c: rec.SBQQ__PricingMethod__c,
-      //  SBQQ__ProrateMultiplier__c: rec.SBQQ__ProrateMultiplier__c,
-      //  SBQQ__RequiredBy__c: rec.SBQQ__RequiredBy__c,
-       // SBQQ__SegmentIndex__c: rec.SBQQ__SegmentIndex__c,
-       // SBQQ__SegmentKey__c: rec.SBQQ__SegmentKey__c,
-      //  SBQQ__TaxCode__c: rec.SBQQ__TaxCode__c,
-       // SBQQ__TermDiscountSchedule__c: rec.SBQQ__TermDiscountSchedule__c,
-       // SBQQ__UnproratedNetPrice__c: rec.SBQQ__UnproratedNetPrice__c,
-       // SBQQ__UpgradedSubscription__c: rec.SBQQ__UpgradedSubscription__c,
+        Quantity: rec.SBQQ__Quantity__c,
+        SBQQ__OrderedQuantity__c: rec.SBQQ__Quantity__c,
+        SBQQ__QuotedQuantity__c: rec.SBQQ__Quantity__c,
+        UnitPrice: rec?.SBQQ__NetPrice__c !== undefined && rec?.SBQQ__NetPrice__c !== null
+          ? rec.SBQQ__NetPrice__c
+          : 0,
+
+        SBQQ__BillingFrequency__c: rec.SBQQ__BillingFrequency__c,
+        SBQQ__BillingType__c: rec.SBQQ__BillingType__c,
+        SBQQ__BlockPrice__c: rec.SBQQ__BlockPrice__c,
+        SBQQ__ChargeType__c: rec.SBQQ__ChargeType__c,
+        SBQQ__DefaultSubscriptionTerm__c: rec.SBQQ__DefaultSubscriptionTerm__c,
+        SBQQ__DiscountSchedule__c: rec.SBQQ__DiscountSchedule__c,
+        SBQQ__PricingMethod__c: rec.SBQQ__PricingMethod__c,
+        SBQQ__ProrateMultiplier__c: rec.SBQQ__ProrateMultiplier__c,
+        SBQQ__RequiredBy__c: rec.SBQQ__RequiredBy__c,
+        SBQQ__SegmentIndex__c: rec.SBQQ__SegmentIndex__c,
+        SBQQ__SegmentKey__c: rec.SBQQ__SegmentKey__c,
+        SBQQ__TaxCode__c: rec.SBQQ__TaxCode__c,
+        SBQQ__TermDiscountSchedule__c: rec.SBQQ__TermDiscountSchedule__c,
+        SBQQ__UnproratedNetPrice__c: rec.SBQQ__UnproratedNetPrice__c,
+        SBQQ__UpgradedSubscription__c: rec.SBQQ__UpgradedSubscription__c,
 
         ServiceDate: rec.SBQQ__EffectiveStartDate__c,
         EndDate: rec.SBQQ__EffectiveEndDate__c,
@@ -121,27 +122,48 @@ app.post('/api/generateOrderlines', async (req, res) => {
       };
     };
 
-    let results;
-    let createdCount;
+    // ------------------------------
+    // NEW: batch the inserts at 200
+    // ------------------------------
+    const BATCH_SIZE = 200;
+    const resultsPerBatch = [];
+    let createdCount = 0;
 
+    for (let i = 0; i < quoteLines.length; i += BATCH_SIZE) {
+      const batch = quoteLines.slice(i, i + BATCH_SIZE);
+
+      // Create a fresh UoW for this batch
       const uow = dataApi.newUnitOfWork();
 
-      for (const line of quoteLines) {
+      // Keep track of referenceIds to read record IDs from the commit result
+      const refs = [];
+      for (const line of batch) {
         const fields = buildOrderItemFields(line);
-        uow.registerCreate({
-          type: 'OrderItem',
-          fields
-        });
+        const ref = uow.registerCreate({ type: 'OrderItem', fields });
+        refs.push(ref);
       }
-      
-      results = await dataApi.commitUnitOfWork(uow);
-      createdCount = quoteLines.length;
+
+      // Commit the batch
+      const resMap = await dataApi.commitUnitOfWork(uow);
+
+      // Convert the Map<string, RecordModificationResult> into a plain summary for the response
+      const createdIds = refs.map(r => resMap.get(r)?.id).filter(Boolean);
+      resultsPerBatch.push({
+        batchIndex: Math.floor(i / BATCH_SIZE),
+        count: createdIds.length,
+        ids: createdIds
+      });
+
+      createdCount += batch.length;
+    }
+
+    // Keep your original response shape, but use the per-batch summary
     return res.status(200).json({
       message: 'Quote lines converted to order items',
       quoteId,
       orderId,
       createdCount,
-      results
+      results: resultsPerBatch
     });
 
   } catch (err) {
