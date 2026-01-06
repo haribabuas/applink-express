@@ -87,7 +87,7 @@ app.post('/api/generateOrderlines', async (req, res) => {
     const buildOrderItemFields = (line) => {
       const rec = line?.fields;
       //console.log('&&&',rec);
-     // const productId = rec.SBQQ__Product__c;
+      const productId = rec.SBQQ__Product__c;
       return {
         OrderId: orderId,
         Product2Id: productId,
@@ -134,7 +134,7 @@ app.post('/api/generateOrderlines', async (req, res) => {
         });
       }
       
-      results = await dataApi.commitUnitOfWork(uow);
+      results = ''; //await dataApi.commitUnitOfWork(uow);
       createdCount = quoteLines.length;
     return res.status(200).json({
       message: 'Quote lines converted to order items',
