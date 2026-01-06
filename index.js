@@ -80,9 +80,6 @@ app.post('/api/generateOrderlines', async (req, res) => {
       });
     }
 
-    // ------------------------------
-    // Existing logic unchanged
-    // ------------------------------
     const buildOrderItemFields = (line) => {
       const rec = line?.fields;
       const productId = rec.SBQQ__Product__c;
@@ -122,9 +119,6 @@ app.post('/api/generateOrderlines', async (req, res) => {
       };
     };
 
-    // ------------------------------
-    // NEW: batch the inserts at 200
-    // ------------------------------
     const BATCH_SIZE = 200;
     const resultsPerBatch = [];
     let createdCount = 0;
@@ -132,10 +126,9 @@ app.post('/api/generateOrderlines', async (req, res) => {
     for (let i = 0; i < quoteLines.length; i += BATCH_SIZE) {
       const batch = quoteLines.slice(i, i + BATCH_SIZE);
 
-      // Create a fresh UoW for this batch
+   
       const uow = dataApi.newUnitOfWork();
 
-      // Keep track of referenceIds to read record IDs from the commit result
       const refs = [];
       for (const line of batch) {
         const fields = buildOrderItemFields(line);
@@ -146,7 +139,6 @@ app.post('/api/generateOrderlines', async (req, res) => {
       // Commit the batch
       const resMap = await dataApi.commitUnitOfWork(uow);
 
-      // Convert the Map<string, RecordModificationResult> into a plain summary for the response
       const createdIds = refs.map(r => resMap.get(r)?.id).filter(Boolean);
       resultsPerBatch.push({
         batchIndex: Math.floor(i / BATCH_SIZE),
@@ -157,7 +149,6 @@ app.post('/api/generateOrderlines', async (req, res) => {
       createdCount += batch.length;
     }
 
-    // Keep your original response shape, but use the per-batch summary
     return res.status(200).json({
       message: 'Quote lines converted to order items',
       quoteId,
