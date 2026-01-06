@@ -68,11 +68,10 @@ app.post('/api/generateContractlines', async (req, res) => {
 
     const qResult = await dataApi.query(soql);
     const orderLines = Array.isArray(qResult?.records) ? qResult.records : [];
-    console.log('@@@orderLines', orderLines);
+    console.log('@@@orderLines', orderLines.length);
 
     const buildOrderItemFields = (line) => {
       const item = line?.fields;
-      console.log('&&&', item);
       const productId = item.SBQQ__Product__c;
       return {
         SBQQ__Contract__c:             item?.Order?.fields?.ContractId ?? null,
@@ -113,7 +112,6 @@ app.post('/api/generateContractlines', async (req, res) => {
       const refs = [];
       for (const line of batch) {
         const fields = buildOrderItemFields(line);
-        console.log('@@@fields', fields);
         const ref = uow.registerCreate({
           type: 'SBQQ__Subscription__c',
           fields
