@@ -59,7 +59,7 @@ app.post('/api/generateOrderlines', async (req, res) => {
       SELECT
         Id,
         SBQQ__Product__c,
-        SBQQ__PricebookEntry__c,              /* <-- use CPQ Pricebook Entry lookup */
+        SBQQ__PricebookEntry__c,        
         SBQQ__Quantity__c,
         SBQQ__BillingFrequency__c,
         SBQQ__BillingType__c,
