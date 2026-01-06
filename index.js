@@ -75,7 +75,7 @@ app.post('/api/generateOrderlines', async (req, res) => {
 
     const qResult = await dataApi.query(soql);
     const quoteLines = Array.isArray(qResult?.records) ? qResult.records : [];
-    //console.log('@@@quoteLines',quoteLines);
+    console.log('@@@quoteLines',quoteLines.length);
     if (!quoteLines.length) {
       return res.status(404).json({
         message: 'No quote lines found for the given quoteId',
@@ -87,17 +87,17 @@ app.post('/api/generateOrderlines', async (req, res) => {
     const buildOrderItemFields = (line) => {
       const rec = line?.fields;
       //console.log('&&&',rec);
-      const productId = rec.SBQQ__Product__c;
+     // const productId = rec.SBQQ__Product__c;
       return {
         OrderId: orderId,
         Product2Id: productId,
         Description: 'Bridge',
         PricebookEntryId: rec.SBQQ__PricebookEntryId__c,
 
-        Quantity: rec.SBQQ__Quantity__c,
+        Quantity: 0,
         //SBQQ__OrderedQuantity__c: rec.SBQQ__Quantity__c,
        // SBQQ__QuotedQuantity__c: rec.SBQQ__Quantity__c,
-        UnitPrice: rec?.SBQQ__NetPrice__c !== undefined && rec?.SBQQ__NetPrice__c !== null? rec.SBQQ__NetPrice__c: 0,
+        UnitPrice: 0,
         //SBQQ__BillingFrequency__c: rec.SBQQ__BillingFrequency__c,
        // SBQQ__BillingType__c: rec.SBQQ__BillingType__c,
        // SBQQ__BlockPrice__c: rec.SBQQ__BlockPrice__c,
@@ -124,22 +124,18 @@ app.post('/api/generateOrderlines', async (req, res) => {
     let results;
     let createdCount;
 
-    if (typeof dataApi.newUnitOfWork === 'function' && typeof dataApi.commitUnitOfWork === 'function') {
       const uow = dataApi.newUnitOfWork();
 
       for (const line of quoteLines) {
         const fields = buildOrderItemFields(line);
-        //console.log('@@@fields',fields);
         uow.registerCreate({
           type: 'OrderItem',
           fields
         });
       }
-      //console.log('@@@uow',uow);
+      
       results = await dataApi.commitUnitOfWork(uow);
       createdCount = quoteLines.length;
-
-    } 
     return res.status(200).json({
       message: 'Quote lines converted to order items',
       quoteId,
