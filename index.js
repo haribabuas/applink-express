@@ -59,7 +59,7 @@ app.post('/api/generateOrderlines', async (req, res) => {
       SELECT
         Id,
         SBQQ__Product__c,
-        SBQQ__PricebookEntry__c,        
+        SBQQ__PricebookEntryId__c,        
         SBQQ__Quantity__c,
         SBQQ__BillingFrequency__c,
         SBQQ__BillingType__c,
@@ -102,9 +102,9 @@ app.post('/api/generateOrderlines', async (req, res) => {
     const buildOrderItemFields = (line) => {
       return {
         OrderId: orderId,
-
+        Product2Id: fv(line, 'SBQQ__Product__c'),
         // IMPORTANT: create OrderItem with PricebookEntryId (not Product2Id)
-        PricebookEntryId: fv(line, 'SBQQ__PricebookEntry__c'),
+        PricebookEntryId: fv(line, 'SBQQ__PricebookEntryId__c'),
 
         Quantity: fv(line, 'SBQQ__Quantity__c') ?? 0,
         SBQQ__OrderedQuantity__c: fv(line, 'SBQQ__Quantity__c') ?? 0,
