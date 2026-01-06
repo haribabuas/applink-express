@@ -75,7 +75,7 @@ app.post('/api/generateOrderlines', async (req, res) => {
 
     const qResult = await dataApi.query(soql);
     const quoteLines = Array.isArray(qResult?.records) ? qResult.records : [];
-    console.log('@@@quoteLines',quoteLines);
+    //console.log('@@@quoteLines',quoteLines);
     if (!quoteLines.length) {
       return res.status(404).json({
         message: 'No quote lines found for the given quoteId',
@@ -86,7 +86,7 @@ app.post('/api/generateOrderlines', async (req, res) => {
 
     const buildOrderItemFields = (line) => {
       const rec = line?.fields;
-      console.log('&&&',rec);
+      //console.log('&&&',rec);
       const productId = rec.SBQQ__Product__c;
       return {
         OrderId: orderId,
@@ -129,7 +129,7 @@ app.post('/api/generateOrderlines', async (req, res) => {
 
       for (const line of quoteLines) {
         const fields = buildOrderItemFields(line);
-        console.log('@@@fields',fields);
+        //console.log('@@@fields',fields);
         uow.registerCreate({
           type: 'OrderItem',
           fields
