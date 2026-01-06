@@ -39,15 +39,27 @@ function chunkArray(array, size) {
 app.post('/api/generateOrderlines', async (req, res) => {
   try {
     const { orderId, quoteId } = req.body;
+
+    // Parse SF context and get Data API
     const sf = applinkSDK.parseRequest(req.headers, req.body, null);
     const dataApi = sf.context.org?.dataApi;
+    if (!dataApi) {
+      return res.status(500).json({ error: 'Salesforce Data API not available in context.' });
+    }
+
+    // Guard required inputs
+    if (!orderId || !quoteId) {
+      return res.status(400).json({ error: 'Missing orderId or quoteId.' });
+    }
+
+    // Escape single quotes in Literal SOQL
     const safeQuoteId = String(quoteId).replace(/'/g, "\\'");
 
     const soql = `
       SELECT
         Id,
         SBQQ__Product__c,
-        SBQQ__PricebookEntryId__c,
+        SBQQ__PricebookEntry__c,              /* <-- use CPQ Pricebook Entry lookup */
         SBQQ__Quantity__c,
         SBQQ__BillingFrequency__c,
         SBQQ__BillingType__c,
@@ -75,7 +87,7 @@ app.post('/api/generateOrderlines', async (req, res) => {
 
     const qResult = await dataApi.query(soql);
     const quoteLines = Array.isArray(qResult?.records) ? qResult.records : [];
-    //console.log('@@@quoteLines',quoteLines);
+
     if (!quoteLines.length) {
       return res.status(404).json({
         message: 'No quote lines found for the given quoteId',
@@ -83,41 +95,47 @@ app.post('/api/generateOrderlines', async (req, res) => {
       });
     }
 
+    // Helper to safely fetch .value from Data API query rows
+    const fv = (row, api) => row?.fields?.[api]?.value ?? null;
 
+    // Build OrderItem fields from one quote line
     const buildOrderItemFields = (line) => {
-      const rec = line?.fields;
-      //console.log('&&&',rec);
-      const productId = rec.SBQQ__Product__c;
       return {
         OrderId: orderId,
-        Product2Id: productId,
+
+        // IMPORTANT: create OrderItem with PricebookEntryId (not Product2Id)
+        PricebookEntryId: fv(line, 'SBQQ__PricebookEntry__c'),
+
+        Quantity: fv(line, 'SBQQ__Quantity__c') ?? 0,
+        SBQQ__OrderedQuantity__c: fv(line, 'SBQQ__Quantity__c') ?? 0,
+        SBQQ__QuotedQuantity__c: fv(line, 'SBQQ__Quantity__c') ?? 0,
+
+        UnitPrice: fv(line, 'SBQQ__NetPrice__c') ?? 0,
+
         Description: 'Bridge',
-        PricebookEntryId: rec.SBQQ__PricebookEntryId__c,
 
-        Quantity: rec.SBQQ__Quantity__c,
-        SBQQ__OrderedQuantity__c: rec.SBQQ__Quantity__c,
-        SBQQ__QuotedQuantity__c: rec.SBQQ__Quantity__c,
-        UnitPrice: rec?.SBQQ__NetPrice__c !== undefined && rec?.SBQQ__NetPrice__c !== null? rec.SBQQ__NetPrice__c: 0,
-        SBQQ__BillingFrequency__c: rec.SBQQ__BillingFrequency__c,
-        SBQQ__BillingType__c: rec.SBQQ__BillingType__c,
-        SBQQ__BlockPrice__c: rec.SBQQ__BlockPrice__c,
-        SBQQ__ChargeType__c: rec.SBQQ__ChargeType__c,
-        SBQQ__DefaultSubscriptionTerm__c: rec.SBQQ__DefaultSubscriptionTerm__c,
-        SBQQ__DiscountSchedule__c: rec.SBQQ__DiscountSchedule__c,
-        SBQQ__PricingMethod__c: rec.SBQQ__PricingMethod__c,
-        SBQQ__ProrateMultiplier__c: rec.SBQQ__ProrateMultiplier__c,
-        SBQQ__RequiredBy__c: rec.SBQQ__RequiredBy__c,
-        SBQQ__SegmentIndex__c: rec.SBQQ__SegmentIndex__c,
-        SBQQ__SegmentKey__c: rec.SBQQ__SegmentKey__c,
-        SBQQ__TaxCode__c: rec.SBQQ__TaxCode__c,
-        SBQQ__TermDiscountSchedule__c: rec.SBQQ__TermDiscountSchedule__c,
-        SBQQ__UnproratedNetPrice__c: rec.SBQQ__UnproratedNetPrice__c,
-        SBQQ__UpgradedSubscription__c: rec.SBQQ__UpgradedSubscription__c,
+        // carry CPQ attributes if your OrderItem object has those fields
+        SBQQ__BillingFrequency__c: fv(line, 'SBQQ__BillingFrequency__c'),
+        SBQQ__BillingType__c:      fv(line, 'SBQQ__BillingType__c'),
+        SBQQ__BlockPrice__c:       fv(line, 'SBQQ__BlockPrice__c'),
+        SBQQ__ChargeType__c:       fv(line, 'SBQQ__ChargeType__c'),
+        SBQQ__DefaultSubscriptionTerm__c: fv(line, 'SBQQ__DefaultSubscriptionTerm__c'),
+        SBQQ__DiscountSchedule__c: fv(line, 'SBQQ__DiscountSchedule__c'),
+        SBQQ__PricingMethod__c:    fv(line, 'SBQQ__PricingMethod__c'),
+        SBQQ__ProrateMultiplier__c: fv(line, 'SBQQ__ProrateMultiplier__c'),
+        SBQQ__RequiredBy__c:       fv(line, 'SBQQ__RequiredBy__c'),
+        SBQQ__SegmentIndex__c:     fv(line, 'SBQQ__SegmentIndex__c'),
+        SBQQ__SegmentKey__c:       fv(line, 'SBQQ__SegmentKey__c'),
+        SBQQ__TaxCode__c:          fv(line, 'SBQQ__TaxCode__c'),
+        SBQQ__TermDiscountSchedule__c: fv(line, 'SBQQ__TermDiscountSchedule__c'),
+        SBQQ__UnproratedNetPrice__c:   fv(line, 'SBQQ__UnproratedNetPrice__c'),
+        SBQQ__UpgradedSubscription__c: fv(line, 'SBQQ__UpgradedSubscription__c'),
 
-        ServiceDate: rec.SBQQ__EffectiveStartDate__c,
-        EndDate: rec.SBQQ__EffectiveEndDate__c,
+        ServiceDate: fv(line, 'SBQQ__EffectiveStartDate__c'),
+        EndDate:     fv(line, 'SBQQ__EffectiveEndDate__c'),
 
-        SBQQ__QuoteLine__c: rec.Id,
+        // Always use the quote line Id value (not the field object)
+        SBQQ__QuoteLine__c: fv(line, 'Id'),
       };
     };
 
@@ -129,17 +147,20 @@ app.post('/api/generateOrderlines', async (req, res) => {
 
       for (const line of quoteLines) {
         const fields = buildOrderItemFields(line);
-        //console.log('@@@fields',fields);
-        uow.registerCreate({
-          type: 'OrderItem',
-          fields
-        });
-      }
-      //console.log('@@@uow',uow);
-      results = await dataApi.commitUnitOfWork(uow);
-      createdCount = quoteLines.length;
 
-    } 
+        // Minimal required-field guard for OrderItem create
+        if (!fields.PricebookEntryId || fields.Quantity == null || fields.UnitPrice == null) {
+          // Skip or gather into failures list if you want partial success later
+          continue;
+        }
+
+        uow.registerCreate({ type: 'OrderItem', fields });
+      }
+
+      results = await dataApi.commitUnitOfWork(uow);
+      createdCount = quoteLines.length; // or count of registered creates if you skip invalid ones
+    }
+
     return res.status(200).json({
       message: 'Quote lines converted to order items',
       quoteId,
