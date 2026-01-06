@@ -147,13 +147,6 @@ app.post('/api/generateOrderlines', async (req, res) => {
 
       for (const line of quoteLines) {
         const fields = buildOrderItemFields(line);
-
-        // Minimal required-field guard for OrderItem create
-        if (!fields.PricebookEntryId || fields.Quantity == null || fields.UnitPrice == null) {
-          // Skip or gather into failures list if you want partial success later
-          continue;
-        }
-
         uow.registerCreate({ type: 'OrderItem', fields });
       }
 
