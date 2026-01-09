@@ -61,6 +61,7 @@ app.post('/api/generateOrderlines', async (req, res) => {
         SBQQ__SubscriptionTerm__c,
         SBQQ__SubscriptionType__c,
         SBQQ__TaxCode__c,
+        Install__c,
         SBQQ__TermDiscountSchedule__c,
         SBQQ__UnproratedNetPrice__c,
         SBQQ__UpgradedSubscription__c,
@@ -114,7 +115,7 @@ app.post('/api/generateOrderlines', async (req, res) => {
 
         ServiceDate: rec.SBQQ__EffectiveStartDate__c,
         EndDate: rec.SBQQ__EffectiveEndDate__c,
-
+        Install__c: rec.Install__c,
         SBQQ__QuoteLine__c: rec.Id,
       };
     };
