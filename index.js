@@ -74,6 +74,7 @@ app.post('/api/generateOrderlines', async (req, res) => {
 
     const qResult = await dataApi.query(soql);
     const quoteLines = Array.isArray(qResult?.records) ? qResult.records : [];
+    console.log('@@@quoteLines ',quoteLines.length);
     if (!quoteLines.length) {
       return res.status(404).json({
         message: 'No quote lines found for the given quoteId',
@@ -136,7 +137,7 @@ app.post('/api/generateOrderlines', async (req, res) => {
         const ref = uow.registerCreate({ type: 'OrderItem', fields });
         refs.push(ref);
       }
-
+    console.log('@@@uow batch', Math.floor(i / BATCH_SIZE));
       // Commit the batch
       const resMap = await dataApi.commitUnitOfWork(uow);
 
