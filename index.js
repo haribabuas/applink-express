@@ -121,7 +121,7 @@ app.post('/api/generateOrderlines', async (req, res) => {
       };
     };
 
-    const BATCH_SIZE = 999;
+    const BATCH_SIZE = 800;
     const resultsPerBatch = [];
     let createdCount = 0;
 
