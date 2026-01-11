@@ -14,11 +14,12 @@ function chunkArray(array, size) {
   return result;
 }
 
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function commitWithRetry(dataApi, uow, {
-  maxRetries = 6,          // ~ up to ~15s total with backoff+jitter
-  baseDelayMs = 250,       // start small
+  maxRetries = 6,
+  baseDelayMs = 250,
 } = {}) {
   let attempt = 0;
   while (true) {
@@ -26,11 +27,10 @@ async function commitWithRetry(dataApi, uow, {
       return await dataApi.commitUnitOfWork(uow);
     } catch (e) {
       const msg = String(e?.message || e);
-	  console.log('@@@',msg);
+		console.log('@@@@',msg);
       const isLock = /UNABLE_TO_LOCK_ROW/i.test(msg);
       if (!isLock || attempt >= maxRetries) throw e;
 
-      // Exponential backoff with jitter
       const delay = baseDelayMs * Math.pow(2, attempt) + Math.floor(Math.random() * 200);
       attempt += 1;
       console.warn(`commitWithRetry: lock hit; retry ${attempt}/${maxRetries} after ${delay}ms`);
@@ -48,12 +48,17 @@ app.post('/api/generateOrderlines', async (req, res) => {
       return res.status(500).json({ error: 'Salesforce dataApi not available' });
     }
 
-    // 1) Lock the parent Order immediately (serializes competing upserts against this Order)
-    //    Most SF APIs support SOQL FOR UPDATE.
-    await dataApi.query(`SELECT Id FROM Order WHERE Id = '${orderId}' FOR UPDATE`);
+    // REMOVE FOR UPDATE: Data API doesn't support it
+    // We still query Order so we can fail early if Id is bad
+    const orderCheck = await dataApi.query(
+      `SELECT Id FROM Order WHERE Id = '${orderId}' LIMIT 1`
+    );
+    if (!orderCheck?.records?.length) {
+      return res.status(400).json({ error: 'Order not found', orderId });
+    }
 
-    // 2) Pull quote lines and lock them, too (optional but helps when CPQ/triggers touch QL)
     const safeQuoteId = String(quoteId).replace(/'/g, "\\'");
+    // REMOVE FOR UPDATE here as well
     const soql = `
       SELECT
         Id,
@@ -83,7 +88,6 @@ app.post('/api/generateOrderlines', async (req, res) => {
         SBQQ__NetPrice__c
       FROM SBQQ__QuoteLine__c
       WHERE SBQQ__Quote__c = '${safeQuoteId}'
-      FOR UPDATE
     `;
 
     const qResult = await dataApi.query(soql);
@@ -133,10 +137,10 @@ app.post('/api/generateOrderlines', async (req, res) => {
       };
     };
 
-    // 3) Use smaller batches and process in a deterministic order to reduce deadlocks
+    // Smaller batches reduce lock durations
     const BATCH_SIZE = 10;
 
-    // Sort by a stable key (PricebookEntryId then QuoteLine Id)
+    // Deterministic ordering to reduce deadlocks
     quoteLines.sort((a, b) => {
       const pa = a?.fields?.SBQQ__PricebookEntryId__c || '';
       const pb = b?.fields?.SBQQ__PricebookEntryId__c || '';
@@ -164,7 +168,7 @@ app.post('/api/generateOrderlines', async (req, res) => {
 
       console.log('@@@uow batch', Math.floor(i / BATCH_SIZE));
 
-      // 4) Commit with robust retry on row locks
+      // Commit with robust retry on row locks
       const resMap = await commitWithRetry(dataApi, uow);
 
       const createdIds = refs
@@ -196,9 +200,6 @@ app.post('/api/generateOrderlines', async (req, res) => {
   }
 });
 
-
-
-    
 
 async function logFailedBatchAsJson({dataApi, quoteId, failedRecords, err}) {
   const errorMessage = String(err?.message || err || 'Unknown error');
