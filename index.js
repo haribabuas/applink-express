@@ -138,7 +138,7 @@ app.post('/api/generateOrderlines', async (req, res) => {
     };
 
     // Smaller batches reduce lock durations
-    const BATCH_SIZE = 10;
+    const BATCH_SIZE = 500;
 
     // Deterministic ordering to reduce deadlocks
     quoteLines.sort((a, b) => {
