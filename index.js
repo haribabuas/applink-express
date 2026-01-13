@@ -190,8 +190,8 @@ app.post('/api/generateOrderlines', async (req, res) => {
 	    fields: { Status: 'Draft' },
 		 id: safeOrderId 
 	  });
-
-      const updRes = await commitWithRetry(dataApi, statusUow);
+	console.log('@@@statusUow',statusUow);
+     const results = await dataApi.commitUnitOfWork(statusUow);
 
     return res.status(200).json({
       message: 'Quote lines converted to order items',
