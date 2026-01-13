@@ -183,14 +183,24 @@ app.post('/api/generateOrderlines', async (req, res) => {
       });
       createdCount += createdIds.length;
     }
-	
+
+	  const unitOfWork = org.dataApi.newUnitOfWork();
+	  const accountRef = unitOfWork.registerUpdate({
+      type: 'Account',
+      fields: updatedFields,
+      id: '001Ov00001NmhT7IAJ' 
+    });
+	const results = await org.dataApi.commitUnitOfWork(unitOfWork);
+
+    const accountResult = results.get(accountRef);
+    console.log('Account updated successfully with ID:', accountResult.id);
 	const statusUow = dataApi.newUnitOfWork();
 	const updRef = statusUow.registerUpdate({
 	    type: 'Order',
 	    fields: { Status: 'Draft' },
-		 id: safeOrderId 
+		id: safeOrderId 
 	  });
-	console.log('@@@statusUow',statusUow);
+	console.log('@@@updRef',updRef);
      const results = await dataApi.commitUnitOfWork(statusUow);
 
     return res.status(200).json({
@@ -244,6 +254,10 @@ async function withTimeout(promise, ms) {
 
 
 
+const fieldsToUpdate = {
+  Name: 'Updated Account Name',
+  Phone: '1234567890'
+};
 
 function getAdjustedStartDate(dateStr) {
   const date = new Date(dateStr);
