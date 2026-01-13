@@ -49,7 +49,7 @@ app.post('/api/generateOrderlines', async (req, res) => {
     }
 	const unitOfWork = dataApi.newUnitOfWork();
 	 
-
+console.log('@@@quoteId',quoteId);
 	  const accountRef = unitOfWork.registerUpdate({
       type: 'Account',	   	  
       fields: { 
