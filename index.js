@@ -51,9 +51,9 @@ app.post('/api/generateOrderlines', async (req, res) => {
 	 
 
 	  const accountRef = unitOfWork.registerUpdate({
-      type: 'Account',
-	  Id: quoteId, 	  
+      type: 'Account',	   	  
       fields: { 
+		Id: quoteId,  
 		Name: 'Updated Account Name',
 	    Phone: '1234567890'
 	  }
