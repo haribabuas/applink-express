@@ -205,7 +205,8 @@ console.log('@@@quoteId',quoteId);
 	    type: 'Order',
 	    fields: { 
 		  id: orderId,	
-		  Status: 'Draft' 
+		  Status: 'Draft',
+		  Type: 'New'	
 		}
 		});
 	console.log('@@@updRef',updRef);
