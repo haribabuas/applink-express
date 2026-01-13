@@ -182,6 +182,13 @@ app.post('/api/generateOrderlines', async (req, res) => {
       });
       createdCount += createdIds.length;
     }
+	
+	  const statusUow = dataApi.newUnitOfWork();
+      const updRef = statusUow.registerUpdate({
+        type: 'Order',
+        fields: { Id: orderId, Status: 'Draft', Validation_Errors__c = ''}
+      });
+      const updRes = await commitWithRetry(dataApi, statusUow);
 
     return res.status(200).json({
       message: 'Quote lines converted to order items',
