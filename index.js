@@ -42,6 +42,29 @@ function chunkArray(array, size) {
 
 //const crypto = require('crypto');
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function commitWithRetry(dataApi, uow, {
+  maxRetries = 6,
+  baseDelayMs = 250,
+} = {}) {
+  let attempt = 0;
+  while (true) {
+    try {
+      return await dataApi.commitUnitOfWork(uow);
+    } catch (e) {
+      const msg = String(e?.message || e);
+		console.log('@@@@',msg);
+      const isLock = /UNABLE_TO_LOCK_ROW/i.test(msg);
+      if (!isLock || attempt >= maxRetries) throw e;
+
+      const delay = baseDelayMs * Math.pow(2, attempt) + Math.floor(Math.random() * 200);
+      attempt += 1;
+      console.warn(`commitWithRetry: lock hit; retry ${attempt}/${maxRetries} after ${delay}ms`);
+      await sleep(delay);
+    }
+  }
+}
 
 app.post('/api/generatequotelines', async (req, res, next) => {
   try {
@@ -174,8 +197,6 @@ app.post('/api/generatequotelines', async (req, res, next) => {
         pfByKey.get(key).push(pf);
       }
     }
-
-    // ---------- Process batches and create Quote Lines ----------
     const MAX_PER_COMMIT = 200;
     const recordBatches = chunk(allRecords, MAX_PER_COMMIT);
 
@@ -283,7 +304,8 @@ app.post('/api/generatequotelines', async (req, res, next) => {
       }
 
       try {
-        const response = await dataApi.commitUnitOfWork(uow);
+       // const response = await dataApi.commitUnitOfWork(uow);
+        const resMap = await commitWithRetry(dataApi, uow);
         console.log(`@@@commit OK for batch ${batchIdx + 1}`);
       } catch (err) {
         console.error(`@@@commit FAILED for batch ${batchIdx + 1}`, err);
