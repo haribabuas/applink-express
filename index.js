@@ -53,7 +53,7 @@ console.log('@@@quoteId',quoteId);
 	  const accountRef = unitOfWork.registerUpdate({
       type: 'Account',	   	  
       fields: { 
-		id: quoteId,  
+		id: '001Ov00001NmhT7IAJ',  
 		Name: 'Updated Account Name',
 		Phone: '12345454'  
 	  }
@@ -203,9 +203,11 @@ console.log('@@@quoteId',quoteId);
 	const statusUow = dataApi.newUnitOfWork();
 	const updRef = statusUow.registerUpdate({
 	    type: 'Order',
-	    fields: { Status: 'Draft' },
-		id: safeOrderId 
-	  });
+	    fields: { 
+		  id: orderId,	
+		  Status: 'Draft' 
+		}
+		});
 	console.log('@@@updRef',updRef);
      const results = await dataApi.commitUnitOfWork(statusUow);
 
