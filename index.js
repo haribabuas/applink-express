@@ -186,7 +186,7 @@ app.post('/api/generateOrderlines', async (req, res) => {
 	const statusUow = dataApi.newUnitOfWork();
 	const updRef = statusUow.registerUpdate({
 	    type: 'Order',
-	    recordId: orderId,
+	    id: orderId,
 	    fields: { Status: 'Draft' }
 	  });
 
