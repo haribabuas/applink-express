@@ -183,7 +183,7 @@ app.post('/api/generateOrderlines', async (req, res) => {
       createdCount += createdIds.length;
     }
 	
-	 
+	const statusUow = dataApi.newUnitOfWork();
 	const updRef = statusUow.registerUpdate({
 	    type: 'Order',
 	    recordId: orderId,
