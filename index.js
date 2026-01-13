@@ -190,9 +190,9 @@ app.post('/api/generateOrderlines', async (req, res) => {
       fields: updatedFields,
       id: '001Ov00001NmhT7IAJ' 
     });
-	const results = await org.dataApi.commitUnitOfWork(unitOfWork);
+	const resultss = await org.dataApi.commitUnitOfWork(unitOfWork);
 
-    const accountResult = results.get(accountRef);
+    const accountResult = resultss.get(accountRef);
     console.log('Account updated successfully with ID:', accountResult.id);
 	const statusUow = dataApi.newUnitOfWork();
 	const updRef = statusUow.registerUpdate({
