@@ -48,14 +48,16 @@ app.post('/api/generateOrderlines', async (req, res) => {
       return res.status(500).json({ error: 'Salesforce dataApi not available' });
     }
 	const unitOfWork = dataApi.newUnitOfWork();
-	  const fieldsToUpdate = {
-		  Name: 'Updated Account Name',
-		  Phone: '1234567890'
-		};
+	 
+	const fields = {
+	  Name: 'Updated Account Name',
+	  Phone: '1234567890'
+	};
+
 	  const accountRef = unitOfWork.registerUpdate({
       type: 'Account',
 	  id: quoteId, 	  
-      fieldsToUpdate
+      fields
     });
 	  console.log('@@@accountRef',accountRef);
 	const resultss = await dataApi.commitUnitOfWork(unitOfWork);
