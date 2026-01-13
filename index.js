@@ -58,6 +58,7 @@ app.post('/api/generateOrderlines', async (req, res) => {
     }
 
     const safeQuoteId = String(quoteId).replace(/'/g, "\\'");
+	const safeOrderId = String(orderId).replace(/'/g, "\\'")
     // REMOVE FOR UPDATE here as well
     const soql = `
       SELECT
@@ -186,8 +187,8 @@ app.post('/api/generateOrderlines', async (req, res) => {
 	const statusUow = dataApi.newUnitOfWork();
 	const updRef = statusUow.registerUpdate({
 	    type: 'Order',
-	    id: orderId,
-	    fields: { Status: 'Draft' }
+	    fields: { Status: 'Draft' },
+		 id: safeOrderId 
 	  });
 
       const updRes = await commitWithRetry(dataApi, statusUow);
