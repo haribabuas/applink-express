@@ -295,10 +295,8 @@ app.post('/api/generatequotelines', async (req, res, next) => {
             Access_Range__c: accessRange,
             Sales_Org__c: salesOrg,
             CPQ_License_Type__c: licenseType,
-
-           
             SBQQ__MaximumPrice__c: maxListUnitPrice,
-            Serial_Number__c: serialNormalized
+            Serial_Number__c: sl.List_of_Serial_Qty__c //serialNormalized
           },
         });
       }
