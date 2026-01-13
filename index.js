@@ -53,12 +53,11 @@ app.post('/api/generateOrderlines', async (req, res) => {
 	  const accountRef = unitOfWork.registerUpdate({
       type: 'Account',	   	  
       fields: { 
-		Id: quoteId,  
-		Name: 'Updated Account Name',
-	    Phone: '1234567890'
+		id: '001Ov00001NmhT7IAJ',  
+		Name: 'Updated Account Name'
 	  }
     });
-	  console.log('@@@accountRef',accountRef);
+	  console.log('@@@sjsj',accountRef);
 	const resultss = await dataApi.commitUnitOfWork(unitOfWork);
 
     const accountResult = resultss.get(accountRef);
