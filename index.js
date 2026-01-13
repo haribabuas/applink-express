@@ -47,7 +47,21 @@ app.post('/api/generateOrderlines', async (req, res) => {
     if (!dataApi) {
       return res.status(500).json({ error: 'Salesforce dataApi not available' });
     }
+	const unitOfWork = dataApi.newUnitOfWork();
+	  const fieldsToUpdate = {
+		  id: quoteId, 
+		  Name: 'Updated Account Name',
+		  Phone: '1234567890'
+		};
+	  const accountRef = unitOfWork.registerUpdate({
+      type: 'Account',
+      fieldsToUpdate
+    });
+	  console.log('@@@accountRef',accountRef);
+	const resultss = await dataApi.commitUnitOfWork(unitOfWork);
 
+    const accountResult = resultss.get(accountRef);
+    console.log('Account updated successfully with ID:', accountResult.id);
     // REMOVE FOR UPDATE: Data API doesn't support it
     // We still query Order so we can fail early if Id is bad
     const orderCheck = await dataApi.query(
@@ -184,21 +198,7 @@ app.post('/api/generateOrderlines', async (req, res) => {
       createdCount += createdIds.length;
     }
 
-	  const unitOfWork = dataApi.newUnitOfWork();
-	  const fieldsToUpdate = {
-		  id: '001Ov00001NmhT7IAJ', 
-		  Name: 'Updated Account Name',
-		  Phone: '1234567890'
-		};
-	  const accountRef = unitOfWork.registerUpdate({
-      type: 'Account',
-      fieldsToUpdate
-    });
-	  console.log('@@@accountRef',accountRef);
-	const resultss = await dataApi.commitUnitOfWork(unitOfWork);
-
-    const accountResult = resultss.get(accountRef);
-    console.log('Account updated successfully with ID:', accountResult.id);
+	  
 	const statusUow = dataApi.newUnitOfWork();
 	const updRef = statusUow.registerUpdate({
 	    type: 'Order',
