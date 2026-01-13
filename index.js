@@ -183,11 +183,13 @@ app.post('/api/generateOrderlines', async (req, res) => {
       createdCount += createdIds.length;
     }
 	
-	  const statusUow = dataApi.newUnitOfWork();
-      const updRef = statusUow.registerUpdate({
-        type: 'Order',
-        fields: { Id: orderId, Status: 'Draft'}
-      });
+	 
+	const updRef = statusUow.registerUpdate({
+	    type: 'Order',
+	    recordId: orderId,
+	    fields: { Status: 'Draft' }
+	  });
+
       const updRes = await commitWithRetry(dataApi, statusUow);
 
     return res.status(200).json({
