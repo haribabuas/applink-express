@@ -186,7 +186,7 @@ app.post('/api/generateOrderlines', async (req, res) => {
 	  const statusUow = dataApi.newUnitOfWork();
       const updRef = statusUow.registerUpdate({
         type: 'Order',
-        fields: { Id: orderId, Status: 'Draft', Validation_Errors__c = ''}
+        fields: { Id: orderId, Status: 'Draft', Validation_Errors__c: ''}
       });
       const updRes = await commitWithRetry(dataApi, statusUow);
 
