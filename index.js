@@ -54,7 +54,8 @@ console.log('@@@quoteId',quoteId);
       type: 'Account',	   	  
       fields: { 
 		id: quoteId,  
-		Name: 'Updated Account Name'
+		Name: 'Updated Account Name',
+		Phone: '12345454'  
 	  }
     });
 	  console.log('@@@sjsj',accountRef);
