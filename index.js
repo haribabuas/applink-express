@@ -185,11 +185,16 @@ app.post('/api/generateOrderlines', async (req, res) => {
     }
 
 	  const unitOfWork = dataApi.newUnitOfWork();
+	  const fieldsToUpdate = {
+		  Name: 'Updated Account Name',
+		  Phone: '1234567890'
+		};
 	  const accountRef = unitOfWork.registerUpdate({
       type: 'Account',
-      fields: updatedFields,
+      fieldsToUpdate,
       id: '001Ov00001NmhT7IAJ' 
     });
+	  console.log('@@@accountRef',accountRef);
 	const resultss = await dataApi.commitUnitOfWork(unitOfWork);
 
     const accountResult = resultss.get(accountRef);
@@ -252,12 +257,6 @@ async function withTimeout(promise, ms) {
 }
 
 
-
-
-const fieldsToUpdate = {
-  Name: 'Updated Account Name',
-  Phone: '1234567890'
-};
 
 function getAdjustedStartDate(dateStr) {
   const date = new Date(dateStr);
