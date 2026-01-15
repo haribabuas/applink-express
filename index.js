@@ -134,11 +134,7 @@ app.post('/api/generateOrderlines', async (req, res) => {
         SBQQ__QuoteLine__c: rec.Id,
       };
     };
-
-    // Smaller batches reduce lock durations
     const BATCH_SIZE = 500;
-
-    // Deterministic ordering to reduce deadlocks
     quoteLines.sort((a, b) => {
       const pa = a?.fields?.SBQQ__PricebookEntryId__c || '';
       const pb = b?.fields?.SBQQ__PricebookEntryId__c || '';
@@ -165,8 +161,6 @@ app.post('/api/generateOrderlines', async (req, res) => {
       }
 
       console.log('@@@uow batch', Math.floor(i / BATCH_SIZE));
-
-      // Commit with robust retry on row locks
       const resMap = await commitWithRetry(dataApi, uow);
 
       const createdIds = refs
@@ -187,8 +181,7 @@ app.post('/api/generateOrderlines', async (req, res) => {
 	    type: 'Order',
 	    fields: { 
 		  id: orderId,	
-		  Status: 'Draft',
-		  Type: 'New'	
+		  Status: 'Draft'	
 		}
 		});
 	console.log('@@@updRef',updRef);
