@@ -316,7 +316,16 @@ app.post('/api/generatequotelines', async (req, res, next) => {
         });
       }
     }
-
+	const statusUow = dataApi.newUnitOfWork();
+	const updRef = statusUow.registerUpdate({
+	    type: 'SBQQ__Quote__c',
+	    fields: { 
+		  id: quoteId,	
+		  Process_through_Heroku__c: true	
+		}
+		});
+	console.log('@@@updRef',updRef);
+     const results = await dataApi.commitUnitOfWork(statusUow);
     return res.status(200).json({ message: 'Quote lines created', recordsProcessed: allRecords.length });
   } catch (err) {
     console.error('generatequotelines failed', err);
