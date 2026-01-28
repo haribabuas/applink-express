@@ -80,7 +80,7 @@ app.post('/api/generateContractlines', async (req, res) => {
         SBQQ__SubscriptionStartDate__c:item?.ServiceDate ?? null,
         SBQQ__SubscriptionEndDate__c:  item?.EndDate ?? null,
         SBQQ__Account__c:              item?.Order?.fields?.AccountId ?? null,
-
+        SBQQ__NetPrice__c:             (item?.UnitPrice ?? 0),
         SBQQ__BillingFrequency__c:     item?.SBQQ__BillingFrequency__c ?? null,
         SBQQ__BillingType__c:          item?.SBQQ__BillingType__c ?? null,
         SBQQ__ChargeType__c:           item?.SBQQ__ChargeType__c ?? null,
