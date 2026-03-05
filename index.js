@@ -70,11 +70,25 @@ app.post('/api/generateContractlines', async (req, res) => {
     const orderLines = Array.isArray(qResult?.records) ? qResult.records : [];
     console.log('@@@orderLines', orderLines.length);
 
+    const soqlCont = `
+      SELECT
+        Id
+      FROM Contract
+      WHERE SBQQ__Order__c IN (${inList})
+    `;
+
+    const cResult = await dataApi.query(soqlCont);
+    let contractId = null;
+
+    if (cResult.records && cResult.records.length > 0) {
+      contractId = cResult.records[0].Id;
+    }
+    console.log('***@@@',contractId);
     const buildOrderItemFields = (line) => {
       const item = line?.fields;
       const productId = item.SBQQ__Product__c;
       return {
-        SBQQ__Contract__c:             item?.Order?.fields?.ContractId ?? null,
+        SBQQ__Contract__c:             contractId,
         SBQQ__Product__c:              item?.Product2Id ?? null,
         SBQQ__Quantity__c:             item?.Quantity ?? 0,
         SBQQ__SubscriptionStartDate__c:item?.ServiceDate ?? null,
