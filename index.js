@@ -67,6 +67,7 @@ app.post('/api/generateContractlines', async (req, res) => {
     `;
 
     const qResult = await dataApi.query(soql);
+    
     const orderLines = Array.isArray(qResult?.records) ? qResult.records : [];
     console.log('@@@orderLines', orderLines.length);
 
@@ -78,6 +79,7 @@ app.post('/api/generateContractlines', async (req, res) => {
     `;
 
     const cResult = await dataApi.query(soqlCont);
+    console.log('rest@@@',cResult);
     let contractId = null;
     console.log('id@@@',cResult.records[0].Id);
     if (cResult.records && cResult.records.length >= 0) {
