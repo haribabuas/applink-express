@@ -79,8 +79,8 @@ app.post('/api/generateContractlines', async (req, res) => {
 
     const cResult = await dataApi.query(soqlCont);
     let contractId = null;
-
-    if (cResult.records && cResult.records.length > 0) {
+    console.log('id@@@',cResult.records[0].Id);
+    if (cResult.records && cResult.records.length >= 0) {
       contractId = cResult.records[0].Id;
     }
     console.log('***@@@',contractId);
