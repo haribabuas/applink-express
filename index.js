@@ -81,17 +81,14 @@ app.post('/api/generateContractlines', async (req, res) => {
     const cResult = await dataApi.query(soqlCont);
      const contrts = Array.isArray(cResult?.records) ? cResult.records : [];
     console.log('rest@@@',contrts);
-    let contractId = null;
-    console.log('id@@@',contrts[0]?.fields?.Id);
-    if (contrts.records && contrts.length >= 0) {
-      contractId = contrts[0].Id;
-    }
-    console.log('***@@@',contractId);
+    let contractId = contrts[0]?.fields?.Id;
+    console.log('con@@@',contractId);
+    
     const buildOrderItemFields = (line) => {
       const item = line?.fields;
       const productId = item.SBQQ__Product__c;
       return {
-        SBQQ__Contract__c:             contractId,
+        SBQQ__Contract__c:             contrts[0]?.fields?.Id ?? null,
         SBQQ__Product__c:              item?.Product2Id ?? null,
         SBQQ__Quantity__c:             item?.Quantity ?? 0,
         SBQQ__SubscriptionStartDate__c:item?.ServiceDate ?? null,
