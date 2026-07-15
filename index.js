@@ -56,7 +56,7 @@ const dataApi = sf.context.org.dataApi;
 
   // Continue work asynchronously (off the request lifecycle)
   process.nextTick(() =>
-	processOrderLinesAsync({
+	processQuoteLinesAsync({
 	  quoteId,
 	  sapLineIds,
 	  dataApi,
