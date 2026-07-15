@@ -67,15 +67,6 @@ const dataApi = sf.context.org.dataApi;
 
 async function processQuoteLinesAsync({ quoteId, sapLineIds, dataApi, jobId }) {
   try {
-    const { quoteId, sapLineIds } = req.body;
-    if (!quoteId || !Array.isArray(sapLineIds) || sapLineIds.length === 0) {
-      return res.status(400).json({ error: 'Missing required data' });
-    }
-
-    const sf = applinkSDK.parseRequest(req.headers, req.body, null);
-    const dataApi = sf.context.org.dataApi;
-
-  
     const roundHalfUp = (value, decimals = 2) => {
       if (value == null || isNaN(Number(value))) return 0;
       const sign = value < 0 ? -1 : 1;
@@ -326,12 +317,10 @@ async function processQuoteLinesAsync({ quoteId, sapLineIds, dataApi, jobId }) {
 		});
 	console.log('@@@updRef',updRef);
      const results = await dataApi.commitUnitOfWork(statusUow);
-    return res.status(200).json({ message: 'Quote lines created', recordsProcessed: allRecords.length });
   } catch (err) {
-    console.error('generatequotelines failed', err);
-    return res.status(500).json({ error: 'Internal error', details: String(err?.message || err) });
+    console.error(`>>> [Job ${jobId}] FAILED:`, err);
   }
-};
+}
 
 
 
