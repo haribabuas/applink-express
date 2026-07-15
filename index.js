@@ -5,31 +5,6 @@ const express = require('express');
 const app = express();
 app.use(express.json());
 
-/*app.post('/test/generatequotelines', async (req, res) => {
-  const { quoteId, sapLineIds } = req.body;
-
-    const sf = applinkSDK.parseRequest(req.headers, req.body, null);
-    const org = sf.context.org;
-    const dataApi = sf.context.org.dataApi;
-    console.log('@@@Org Context:', dataApi);
-
-    const uow = dataApi.newUnitOfWork();
-    const accountId = uow.registerCreate({
-        type: 'Account',
-        fields: {
-          Name: 'Test Account',
-        },
-      });
-
-    const response = await dataApi.commitUnitOfWork(uow);
-    
-console.log('@@@Org result:', response);
-    res.json({
-      message: 'Account created successfully'
-    });
- 
-});*/
-
 function chunkArray(array, size) {
   const result = [];
   for (let i = 0; i < array.length; i += size) {
@@ -38,9 +13,6 @@ function chunkArray(array, size) {
   return result;
 }
 
-
-
-//const crypto = require('crypto');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -68,30 +40,30 @@ async function commitWithRetry(dataApi, uow, {
 
 app.post('/api/generatequotelines', async (req, res, next) => {
  
-    const { quoteId, sapLineIds } = req.body;
-    if (!quoteId || !Array.isArray(sapLineIds) || sapLineIds.length === 0) {
-      return res.status(400).json({ error: 'Missing required data' });
-    }
+const { quoteId, sapLineIds } = req.body;
+if (!quoteId || !Array.isArray(sapLineIds) || sapLineIds.length === 0) {
+  return res.status(400).json({ error: 'Missing required data' });
+}
 
-    const sf = applinkSDK.parseRequest(req.headers, req.body, null);
-    const dataApi = sf.context.org.dataApi;
-	 const jobId = `${quoteId}-${Date.now()}`;
-	  res.status(202).json({
-		status: 'accepted',
-		jobId,
-		message: 'Quote line generation started.'
-	  });
+const sf = applinkSDK.parseRequest(req.headers, req.body, null);
+const dataApi = sf.context.org.dataApi;
+ const jobId = `${quoteId}-${Date.now()}`;
+  res.status(202).json({
+	status: 'accepted',
+	jobId,
+	message: 'Quote line generation started.'
+  });
 
-	  // Continue work asynchronously (off the request lifecycle)
-	  process.nextTick(() =>
-		processOrderLinesAsync({
-		  quoteId,
-		  sapLineIds,
-		  dataApi,
-		  jobId
-		})
-	  );
-	});
+  // Continue work asynchronously (off the request lifecycle)
+  process.nextTick(() =>
+	processOrderLinesAsync({
+	  quoteId,
+	  sapLineIds,
+	  dataApi,
+	  jobId
+	})
+  );
+});
 
 async function processQuoteLinesAsync({ quoteId, sapLineIds, dataApi, jobId }) {
   try {
@@ -151,9 +123,9 @@ async function processQuoteLinesAsync({ quoteId, sapLineIds, dataApi, jobId }) {
         SELECT Id,
                License_Type__c, Quantity__c, End_Date_Consolidated__c, O2O_Attribute_Discount__c,
                CPQ_Product__c, Install__c, Maint_Tier_Level__c, SAP_LI_Equipment_Numbers__c,
-               CPQ_Product__r.Global__c, Install__r.Price_List_Type__c, CPQ_Product__r.Access_Range__c,
+               CPQ_Product__r.Global__c, Install__r.Price_List_Type__c, Access_Range__c,  CPQ_Product__r.Access_Range__c,
                SAP_SYNC_ID__c, Prior_Quantity__c, ACV_12_Mth__c, Install__r.AccountID__c,
-               Install__r.Partner_Account__c, Install__r.CPQ_Sales_Org__c,
+               Install__r.Partner_Account__c, Install__r.CPQ_Sales_Org__c,Support_Level__c,Territory__c,
                Monthly_Net_Maint__c,
                List_of_Serial_Qty__c,
                Expiration_Date__c,
@@ -238,7 +210,7 @@ async function processQuoteLinesAsync({ quoteId, sapLineIds, dataApi, jobId }) {
         const productId        = sl.CPQ_Product__c;
         const installId        = sl.Install__c;
         const quantity         = sl.Quantity__c;
-        const accessRange      = sl.CPQ_Product__r?.fields?.Access_Range__c;
+        const accessRange      = sl.Access_Range__c;
         const salesOrg         = sl.Install__r?.fields?.CPQ_Sales_Org__c;
         const accountId        = sl.Install__r?.fields?.AccountID__c;
         const partnerAccountId = sl.Install__r?.fields?.Partner_Account__c;
@@ -291,10 +263,7 @@ async function processQuoteLinesAsync({ quoteId, sapLineIds, dataApi, jobId }) {
 
         const maxListUnitPrice = roundHalfUp(monthlyNet * (1 + upliftPct / 100), 2);
 
-        
         const serialNormalized = normalizeSerialQty(sl.List_of_Serial_Qty__c);
-
-        // Dates for quote line
         const startDate = sl.End_Date_Consolidated__c
           ? getAdjustedStartDate(sl.End_Date_Consolidated__c)
           : new Date();
@@ -321,8 +290,12 @@ async function processQuoteLinesAsync({ quoteId, sapLineIds, dataApi, jobId }) {
             SBQQ__EndDate__c: endDate.toISOString().split('T')[0],
             Access_Range__c: accessRange,
             Sales_Org__c: salesOrg,
+            Support_Level__c: sl.Support_Level__c,
+            Territory__c: sl.Territory__c,
             CPQ_License_Type__c: licenseType,
             SBQQ__MaximumPrice__c: maxListUnitPrice,
+            Monthly_Net_Maint__c: monthlyNet,
+            Serial_Number_Actual__c: sl.List_of_Serial_Qty__c,   		  
             Serial_Number__c: sl.List_of_Serial_Qty__c //serialNormalized
           },
         });
@@ -358,7 +331,7 @@ async function processQuoteLinesAsync({ quoteId, sapLineIds, dataApi, jobId }) {
     console.error('generatequotelines failed', err);
     return res.status(500).json({ error: 'Internal error', details: String(err?.message || err) });
   }
-});
+};
 
 
 
@@ -374,7 +347,7 @@ async function logFailedBatchAsJson({dataApi, quoteId, failedRecords, err}) {
       ProcessStatus__c: 'Failed',
       Sfdc_Error_Code__c: errorCode,
       ErrorDescription__c: errorMessage,
-      QuoteIdRevision__c: quoteId,
+      //QuoteIdRevision__c: quoteId,
       Json_Payload__c: JSON.stringify({
         sapLineIds: failedIds,
         batchSize: failedRecords.length
