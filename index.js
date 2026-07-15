@@ -67,6 +67,33 @@ async function commitWithRetry(dataApi, uow, {
 }
 
 app.post('/api/generatequotelines', async (req, res, next) => {
+ 
+    const { quoteId, sapLineIds } = req.body;
+    if (!quoteId || !Array.isArray(sapLineIds) || sapLineIds.length === 0) {
+      return res.status(400).json({ error: 'Missing required data' });
+    }
+
+    const sf = applinkSDK.parseRequest(req.headers, req.body, null);
+    const dataApi = sf.context.org.dataApi;
+	 const jobId = `${quoteId}-${Date.now()}`;
+	  res.status(202).json({
+		status: 'accepted',
+		jobId,
+		message: 'Quote line generation started.'
+	  });
+
+	  // Continue work asynchronously (off the request lifecycle)
+	  process.nextTick(() =>
+		processOrderLinesAsync({
+		  quoteId,
+		  sapLineIds,
+		  dataApi,
+		  jobId
+		})
+	  );
+	});
+
+async function processQuoteLinesAsync({ quoteId, sapLineIds, dataApi, jobId }) {
   try {
     const { quoteId, sapLineIds } = req.body;
     if (!quoteId || !Array.isArray(sapLineIds) || sapLineIds.length === 0) {
