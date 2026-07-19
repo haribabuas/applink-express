@@ -339,7 +339,9 @@ async function processCloneQuoteLinesAsync({
   try {
 
     console.log(`Starting Clone Job ${jobId}`);
-
+    console.log(
+      `Found ${lineIds.length} quote lines to clone`
+    );
     if (!Array.isArray(lineIds) || lineIds.length === 0) {
       throw new Error('lineIds missing');
     }
