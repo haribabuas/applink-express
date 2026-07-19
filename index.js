@@ -361,7 +361,7 @@ async function processCloneQuoteLinesAsync({
       'SystemModstamp'
     ];
 
-    const MAX_IDS_PER_QUERY = 500;
+    const MAX_IDS_PER_QUERY = 200;
 
     const idChunks = chunkArray(
       lineIds,
