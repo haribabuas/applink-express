@@ -344,10 +344,9 @@ async function processCloneQuoteLinesAsync({
       throw new Error('lineIds missing');
     }
 
-    const creatableFields = listStr
-      .split(',')
-      .map(f => f.trim())
-      .filter(Boolean);
+    const creatableFields = Array.isArray(listStr)
+  ? listStr.map(f => String(f).trim()).filter(Boolean)
+  : [];
 
     const CLONE_FIELDS_EXCLUDE = [
       'Id',
