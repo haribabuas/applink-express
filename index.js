@@ -361,29 +361,46 @@ async function processCloneQuoteLinesAsync({
       'SystemModstamp'
     ];
 
-    const queryChunks = chunkArray(lineIds, 500);
+    const MAX_IDS_PER_QUERY = 500;
+
+    const idChunks = chunkArray(
+      lineIds,
+      MAX_IDS_PER_QUERY
+    );
 
     const allQuoteLines = [];
 
-    for (const ids of queryChunks) {
+    for (const [chunkIndex, ids] of idChunks.entries()) {
 
       const idsString = ids
-        .map(id => `'${id}'`)
+        .map(id => `'${String(id).replace(/'/g, "''")}'`)
         .join(',');
 
       const query = `
         SELECT Id,
-               ${creatableFields.join(',')}
+              ${creatableFields.join(',')}
         FROM SBQQ__QuoteLine__c
         WHERE Id IN (${idsString})
       `;
 
-      const result = await dataApi.query(query);
+      const quoteLineResult = await dataApi.query(query);
 
-      allQuoteLines.push(
-        ...(result?.records || [])
+      const records = quoteLineResult?.records || [];
+
+      console.log(
+        `QuoteLine Query Chunk ${chunkIndex + 1}/${idChunks.length} => requested=${ids.length}, returned=${records.length}`
       );
+
+      allQuoteLines.push(...records);
     }
+
+    console.log(
+      `Total Input IDs: ${lineIds.length}`
+    );
+
+    console.log(
+      `Total Quote Lines Retrieved: ${allQuoteLines.length}`
+    );
 
     console.log(
       `Found ${allQuoteLines.length} quote lines to clone`
