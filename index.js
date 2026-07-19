@@ -40,7 +40,7 @@ async function commitWithRetry(dataApi, uow, {
 
 app.post('/api/generatequotelines', async (req, res, next) => {
  
-const { quoteId,sapLineIds,lineIds,varStr,bolFlag} = req.body;
+const { quoteId,sapLineIds,lineIds,listStr,bolFlag} = req.body;
 const sf = applinkSDK.parseRequest(req.headers, req.body, null);
 const dataApi = sf.context.org.dataApi;
  const jobId = `${quoteId}-${Date.now()}`;
@@ -55,7 +55,7 @@ const dataApi = sf.context.org.dataApi;
       processCloneQuoteLinesAsync({
         quoteId,
         lineIds,
-        varStr,
+        listStr,
         dataApi,
         jobId
       });
@@ -331,7 +331,7 @@ async function processQuoteLinesAsync({ quoteId, sapLineIds, dataApi, jobId }) {
 async function processCloneQuoteLinesAsync({
   quoteId,
   lineIds,
-  varStr,
+  listStr,
   dataApi,
   jobId
 }) {
@@ -344,7 +344,7 @@ async function processCloneQuoteLinesAsync({
       throw new Error('lineIds missing');
     }
 
-    const creatableFields = varStr
+    const creatableFields = listStr
       .split(',')
       .map(f => f.trim())
       .filter(Boolean);
