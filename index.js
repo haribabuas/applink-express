@@ -40,29 +40,35 @@ async function commitWithRetry(dataApi, uow, {
 
 app.post('/api/generatequotelines', async (req, res, next) => {
  
-const { quoteId, sapLineIds } = req.body;
-if (!quoteId || !Array.isArray(sapLineIds) || sapLineIds.length === 0) {
-  return res.status(400).json({ error: 'Missing required data' });
-}
-
+const { quoteId,sapLineIds,lineIds,varStr,bolFlag} = req.body;
 const sf = applinkSDK.parseRequest(req.headers, req.body, null);
 const dataApi = sf.context.org.dataApi;
  const jobId = `${quoteId}-${Date.now()}`;
   res.status(202).json({
-	status: 'accepted',
-	jobId,
-	message: 'Quote line generation started.'
+    status: 'accepted',
+    jobId
   });
 
   // Continue work asynchronously (off the request lifecycle)
-  process.nextTick(() =>
-	processQuoteLinesAsync({
-	  quoteId,
-	  sapLineIds,
-	  dataApi,
-	  jobId
-	})
-  );
+  process.nextTick(() => {
+    if (bolFlag === true) {
+      processCloneQuoteLinesAsync({
+        quoteId,
+        lineIds,
+        varStr,
+        dataApi,
+        jobId
+      });
+
+    } else {
+      processQuoteLinesAsync({
+        quoteId,
+        sapLineIds,
+        dataApi,
+        jobId
+      });
+    }
+  });
 });
 
 async function processQuoteLinesAsync({ quoteId, sapLineIds, dataApi, jobId }) {
@@ -322,7 +328,171 @@ async function processQuoteLinesAsync({ quoteId, sapLineIds, dataApi, jobId }) {
   }
 }
 
+async function processCloneQuoteLinesAsync({
+  quoteId,
+  lineIds,
+  varStr,
+  dataApi,
+  jobId
+}) {
 
+  try {
+
+    console.log(`Starting Clone Job ${jobId}`);
+
+    if (!Array.isArray(lineIds) || lineIds.length === 0) {
+      throw new Error('lineIds missing');
+    }
+
+    const creatableFields = varStr
+      .split(',')
+      .map(f => f.trim())
+      .filter(Boolean);
+
+    const CLONE_FIELDS_EXCLUDE = [
+      'Id',
+	    'SBQQ__Quote__c',
+      'OwnerId',
+      'CreatedDate',
+      'CreatedById',
+      'LastModifiedDate',
+      'LastModifiedById',
+      'SystemModstamp'
+    ];
+
+    const queryChunks = chunkArray(lineIds, 500);
+
+    const allQuoteLines = [];
+
+    for (const ids of queryChunks) {
+
+      const idsString = ids
+        .map(id => `'${id}'`)
+        .join(',');
+
+      const query = `
+        SELECT Id,
+               ${creatableFields.join(',')}
+        FROM SBQQ__QuoteLine__c
+        WHERE Id IN (${idsString})
+      `;
+
+      const result = await dataApi.query(query);
+
+      allQuoteLines.push(
+        ...(result?.records || [])
+      );
+    }
+
+    console.log(
+      `Found ${allQuoteLines.length} quote lines to clone`
+    );
+
+    const batchSize = 200;
+
+    const batches = chunkArray(
+      allQuoteLines,
+      batchSize
+    );
+
+    const originalToCloneMap = new Map();
+
+    for (const [batchIdx, batch] of batches.entries()) {
+
+      const uow = dataApi.newUnitOfWork();
+
+      const localMapping = [];
+
+      for (const record of batch) {
+
+        const src = record.fields || {};
+
+        const cloneFields = {};
+
+        for (const field of creatableFields) {
+
+          if (
+            !CLONE_FIELDS_EXCLUDE.includes(field) &&
+            src[field] !== undefined
+          ) {
+            cloneFields[field] = src[field];
+          }
+        }
+
+        cloneFields.SBQQ__Source__c = src.Id;
+        cloneFields.Cloned_From_Required_By__c =
+          src.SBQQ__RequiredBy__c;
+
+        cloneFields.SBQQ__Quote__c = quoteId;
+
+        const ref = uow.registerCreate({
+          type: 'SBQQ__QuoteLine__c',
+          fields: cloneFields
+        });
+
+        localMapping.push({
+          sourceId: src.Id,
+          ref
+        });
+      }
+
+      try {
+
+        const commitResult =
+          await commitWithRetry(dataApi, uow);
+
+        console.log(
+          `Clone batch ${batchIdx + 1} committed`
+        );
+
+        if (
+          commitResult &&
+          commitResult.results
+        ) {
+
+          commitResult.results.forEach(
+            (result, idx) => {
+
+              if (result.id) {
+
+                originalToCloneMap.set(
+                  localMapping[idx].sourceId,
+                  result.id
+                );
+              }
+            }
+          );
+        }
+
+      } catch (err) {
+
+        console.error(
+          `Clone batch ${batchIdx + 1} failed`,
+          err
+        );
+
+        await logFailedBatchAsJson({
+          dataApi,
+          quoteId,
+          failedRecords: batch,
+          err
+        });
+      }
+    }
+
+    console.log(
+      'Original -> Clone Mapping Size:',
+      originalToCloneMap.size
+    );
+
+  } catch (err) {
+
+    console.error(
+      `Clone Job ${jobId} Failed`,
+      err
+    );
+  }
+}
 
 async function logFailedBatchAsJson({dataApi, quoteId, failedRecords, err}) {
   const errorMessage = String(err?.message || err || 'Unknown error');
@@ -353,9 +523,6 @@ async function withTimeout(promise, ms) {
   const t = new Promise((_, reject) => setTimeout(() => reject(new Error(`Timed out after ${ms}ms`)), ms));
   return Promise.race([promise, t]);
 }
-
-
-
 
 
 function getAdjustedStartDate(dateStr) {
